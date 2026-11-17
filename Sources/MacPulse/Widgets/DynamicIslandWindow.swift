@@ -29,7 +29,7 @@ extension Color {
     }
 }
 
-// MARK: - Native macOS Visual Effect View Blur (Liquid Glassmorphism)
+// MARK: - Native macOS Visual Effect View Blur (Liquid Obsidian Glass)
 
 struct VisualEffectBlur: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .popover
@@ -51,59 +51,87 @@ struct VisualEffectBlur: NSViewRepresentable {
     }
 }
 
-// MARK: - Authentic MacBook Notch Shelf Shape (Concave Top Ears + Rounded Bottom Squircles)
+// MARK: - FirstMouseHostingView (Instant One-Click Interaction on Floating NSPanel)
 
-struct NotchNookShelfShape: Shape {
-    var earRadius: CGFloat = 12
-    var bottomRadius: CGFloat = 20
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
+
+// MARK: - Authentic Dynamic Island Unified Shape (G2 Continuous Cubic Bezier Ears & Squircles)
+
+public struct DynamicIslandUnifiedShape: Shape {
+    public var topRadius: CGFloat = 8
+    public var bottomRadius: CGFloat = 22
+    public var isExpanded: Bool = true
     
-    func path(in rect: CGRect) -> Path {
+    public var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(topRadius, bottomRadius) }
+        set {
+            topRadius = newValue.first
+            bottomRadius = newValue.second
+        }
+    }
+    
+    public func path(in rect: CGRect) -> Path {
         var path = Path()
         let w = rect.width
         let h = rect.height
-        let er = earRadius
-        let br = bottomRadius
         
-        // Start at top-left origin (0, 0)
+        if !isExpanded {
+            // Compact Mode: Continuous squircle capsule
+            return Path(roundedRect: rect, cornerRadius: h / 2.0, style: .continuous)
+        }
+        
+        let tr = min(topRadius, 8)
+        let br = min(bottomRadius, 24)
+        
+        // Start top-left origin (0, 0) flush with screen bezel
         path.move(to: CGPoint(x: 0, y: 0))
         
-        // Top-left smooth concave ear flair (curves inward from top edge to the shelf body)
+        // Top-left transition: smooth cubic bezier eliminating sharp horns
+        if tr > 0 {
+            path.addCurve(
+                to: CGPoint(x: tr, y: tr),
+                control1: CGPoint(x: tr * 0.45, y: 0),
+                control2: CGPoint(x: tr, y: tr * 0.55)
+            )
+        }
+        
+        // Left vertical edge
+        path.addLine(to: CGPoint(x: tr > 0 ? tr : 0, y: h - br))
+        
+        // Bottom-left squircle corner
         path.addQuadCurve(
-            to: CGPoint(x: er, y: er),
-            control: CGPoint(x: er, y: 0)
+            to: CGPoint(x: (tr > 0 ? tr : 0) + br, y: h),
+            control: CGPoint(x: tr > 0 ? tr : 0, y: h)
         )
         
-        // Left edge straight down to before bottom-left corner
-        path.addLine(to: CGPoint(x: er, y: h - br))
+        // Bottom horizontal edge
+        path.addLine(to: CGPoint(x: w - (tr > 0 ? tr : 0) - br, y: h))
         
-        // Bottom-left convex squircle corner
+        // Bottom-right squircle corner
         path.addQuadCurve(
-            to: CGPoint(x: er + br, y: h),
-            control: CGPoint(x: er, y: h)
+            to: CGPoint(x: w - (tr > 0 ? tr : 0), y: h - br),
+            control: CGPoint(x: w - (tr > 0 ? tr : 0), y: h)
         )
         
-        // Bottom edge straight across to before bottom-right corner
-        path.addLine(to: CGPoint(x: w - er - br, y: h))
+        // Right vertical edge
+        path.addLine(to: CGPoint(x: w - (tr > 0 ? tr : 0), y: tr > 0 ? tr : 0))
         
-        // Bottom-right convex squircle corner
-        path.addQuadCurve(
-            to: CGPoint(x: w - er, y: h - br),
-            control: CGPoint(x: w - er, y: h)
-        )
+        // Top-right transition: smooth cubic bezier back to bezel
+        if tr > 0 {
+            path.addCurve(
+                to: CGPoint(x: w, y: 0),
+                control1: CGPoint(x: w - tr, y: tr * 0.55),
+                control2: CGPoint(x: w - tr * 0.45, y: 0)
+            )
+        }
         
-        // Right edge straight up to before top-right ear flair
-        path.addLine(to: CGPoint(x: w - er, y: er))
-        
-        // Top-right smooth concave ear flair (curves outward back to the top edge)
-        path.addQuadCurve(
-            to: CGPoint(x: w, y: 0),
-            control: CGPoint(x: w - er, y: 0)
-        )
-        
-        // Top edge straight across closing the shape at the display bezel
+        // Close top edge flush
         path.addLine(to: CGPoint(x: 0, y: 0))
         path.closeSubpath()
-        
         return path
     }
 }
@@ -116,14 +144,14 @@ final class DynamicIslandPanel: NSPanel {
 }
 
 public enum MacPulseShelfTab: String, CaseIterable {
-    case overview = "Overview"
+    case overview = "Live"
     case vitals = "Vitals"
     case timer = "Focus"
     case history = "History"
     
     var icon: String {
         switch self {
-        case .overview: return "square.grid.2x2"
+        case .overview: return "waveform.path.ecg"
         case .vitals: return "cpu"
         case .timer: return "timer"
         case .history: return "chart.bar"
@@ -143,9 +171,9 @@ public final class DynamicIslandController: ObservableObject {
     
     private var clickOutsideMonitor: Any?
     
-    // Balanced Dimensions (Flush to Top Bezel)
-    private let compactSize = NSSize(width: 258, height: 28)
-    private let expandedSize = NSSize(width: 660, height: 142)
+    // Apple-Engineered Notch & Island Dimensions (Golden Proportions)
+    private let compactSize = NSSize(width: 236, height: 26)
+    private let expandedSize = NSSize(width: 520, height: 165)
     
     private init() {
         setupDistributedNotifications()
@@ -159,6 +187,86 @@ public final class DynamicIslandController: ObservableObject {
             object: nil,
             suspensionBehavior: .deliverImmediately
         )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleExpand),
+            name: NSNotification.Name("com.macpulse.expand"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleCollapse),
+            name: NSNotification.Name("com.macpulse.collapse"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleSwitchTab),
+            name: NSNotification.Name("com.macpulse.switchTab"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleTabLive),
+            name: NSNotification.Name("com.macpulse.tab.live"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleTabVitals),
+            name: NSNotification.Name("com.macpulse.tab.vitals"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleTabFocus),
+            name: NSNotification.Name("com.macpulse.tab.focus"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleTabHistory),
+            name: NSNotification.Name("com.macpulse.tab.history"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+    }
+    
+    @objc private func handleTabLive() {
+        DispatchQueue.main.async { [weak self] in self?.activeTab = .overview }
+    }
+    @objc private func handleTabVitals() {
+        DispatchQueue.main.async { [weak self] in self?.activeTab = .vitals }
+    }
+    @objc private func handleTabFocus() {
+        DispatchQueue.main.async { [weak self] in self?.activeTab = .timer }
+    }
+    @objc private func handleTabHistory() {
+        DispatchQueue.main.async { [weak self] in self?.activeTab = .history }
+    }
+    
+    @objc private func handleExpand() {
+        expand()
+    }
+    
+    @objc private func handleCollapse() {
+        collapse()
+    }
+    
+    @objc private func handleSwitchTab(_ notification: Notification) {
+        if let tabName = notification.userInfo?["tab"] as? String {
+            DispatchQueue.main.async { [weak self] in
+                if let tab = MacPulseShelfTab(rawValue: tabName) {
+                    self?.activeTab = tab
+                }
+            }
+        }
     }
     
     @objc private func handleToggleExpanded() {
@@ -219,7 +327,7 @@ public final class DynamicIslandController: ObservableObject {
         toastSubtitle = subtitle
         showToast = true
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
             guard let self = self, self.showToast else { return }
             self.showToast = false
         }
@@ -253,7 +361,7 @@ public final class DynamicIslandController: ObservableObject {
             panel.hasShadow = false
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             
-            panel.contentView = NSHostingView(
+            panel.contentView = FirstMouseHostingView(
                 rootView: HallmarkDynamicIslandRootView()
             )
             
@@ -285,7 +393,7 @@ public final class DynamicIslandController: ObservableObject {
     
     private func getGeometry(expanded: Bool) -> (size: NSSize, origin: CGPoint) {
         guard let screen = NSScreen.main else {
-            return (NSSize(width: 258, height: 28), .zero)
+            return (compactSize, .zero)
         }
         let targetSize = expanded ? expandedSize : compactSize
         let x = screen.frame.midX - (targetSize.width / 2.0)
@@ -327,29 +435,43 @@ public struct HallmarkDynamicIslandRootView: View {
     
     public var body: some View {
         ZStack(alignment: .top) {
-            // Background Liquid Glass Obsidian Chassis
-            NotchNookShelfShape(earRadius: isExpanded ? 12 : 6, bottomRadius: isExpanded ? 20 : 10)
-                .fill(Color.black.opacity(0.96))
-                .background(
-                    VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
-                        .clipShape(NotchNookShelfShape(earRadius: isExpanded ? 12 : 6, bottomRadius: isExpanded ? 20 : 10))
-                )
-                .overlay(
-                    // Subtle Specular Perimeter Rim Light
-                    NotchNookShelfShape(earRadius: isExpanded ? 12 : 6, bottomRadius: isExpanded ? 20 : 10)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(isHovering || isExpanded ? 0.22 : 0.12),
-                                    Color.white.opacity(0.04),
-                                    Color.clear
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.8
+            // Unified Obsidian Liquid Glass Chassis (Zero Drop Shadow)
+            DynamicIslandUnifiedShape(
+                topRadius: isExpanded ? 8 : 0,
+                bottomRadius: isExpanded ? 22 : 13,
+                isExpanded: isExpanded
+            )
+            .fill(Color(hex: "#0A0A0C").opacity(0.96))
+            .background(
+                VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
+                    .clipShape(
+                        DynamicIslandUnifiedShape(
+                            topRadius: isExpanded ? 8 : 0,
+                            bottomRadius: isExpanded ? 22 : 13,
+                            isExpanded: isExpanded
                         )
+                    )
+            )
+            .overlay(
+                // Subtle Specular Hairline Rim Light (0.5pt)
+                DynamicIslandUnifiedShape(
+                    topRadius: isExpanded ? 8 : 0,
+                    bottomRadius: isExpanded ? 22 : 13,
+                    isExpanded: isExpanded
                 )
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovering || isExpanded ? 0.20 : 0.10),
+                            Color.white.opacity(0.04),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.6
+                )
+            )
             
             // Content Switcher
             if isExpanded {
@@ -360,8 +482,14 @@ public struct HallmarkDynamicIslandRootView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
-        .frame(width: isExpanded ? 660 : 258, height: isExpanded ? 142 : 28)
-        .clipShape(NotchNookShelfShape(earRadius: isExpanded ? 12 : 6, bottomRadius: isExpanded ? 20 : 10))
+        .frame(width: isExpanded ? 520 : 236, height: isExpanded ? 165 : 26)
+        .clipShape(
+            DynamicIslandUnifiedShape(
+                topRadius: isExpanded ? 8 : 0,
+                bottomRadius: isExpanded ? 22 : 13,
+                isExpanded: isExpanded
+            )
+        )
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isExpanded)
         .animation(.spring(response: 0.22, dampingFraction: 0.78), value: isHovering)
         .onHover { hovering in
@@ -396,100 +524,100 @@ public struct HallmarkDynamicIslandRootView: View {
         }
     }
     
-    // MARK: - 1. Compact Notch Bar (258 x 28 — Flush to Top Screen Bezel)
+    // MARK: - 1. Compact Dynamic Island Pill (236 x 26 — Flush Screen-Top Anchor)
     private var compactPillBar: some View {
         HStack(spacing: 0) {
             // 1. Wi-Fi Usage
-            HStack(spacing: 5) {
+            HStack(spacing: 4.5) {
                 Image(systemName: "wifi")
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(Color(hex: "#38BDF8"))
                 
                 let todayTotal = history.todayDownloadBytes + history.todayUploadBytes
                 Text(NetworkUnitFormatter.formatBytes(todayTotal))
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
             }
             .contentShape(Rectangle())
             .onTapGesture { expand() }
             
-            Spacer()
+            Spacer(minLength: 4)
             
-            // Elegant Hairline Divider
+            // Subtle Hairline Divider
             Rectangle()
                 .fill(Color.white.opacity(0.14))
-                .frame(width: 1, height: 11)
+                .frame(width: 1, height: 10)
             
-            Spacer()
+            Spacer(minLength: 4)
             
-            // 2. Hardware Vitals (CPU & RAM)
-            HStack(spacing: 7) {
+            // 2. Hardware Vitals
+            HStack(spacing: 6) {
                 HStack(spacing: 3) {
                     Image(systemName: "cpu")
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(Color.white.opacity(0.60))
                     Text("\(Int(sys.cpu.usagePercentage))%")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
                         .foregroundColor(.white)
                 }
                 
                 HStack(spacing: 3) {
                     Image(systemName: "memorychip")
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(Color.white.opacity(0.60))
                     Text("\(Int(sys.ram.usagePercentage))%")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
                         .foregroundColor(.white)
                 }
             }
             .contentShape(Rectangle())
             .onTapGesture { expand() }
             
-            Spacer()
+            Spacer(minLength: 4)
             
-            // Elegant Hairline Divider
+            // Subtle Hairline Divider
             Rectangle()
                 .fill(Color.white.opacity(0.14))
-                .frame(width: 1, height: 11)
+                .frame(width: 1, height: 10)
             
-            Spacer()
+            Spacer(minLength: 4)
             
             // 3. Status Metric: Active Timer OR Thermals
             Group {
                 if isAnyTimerRunning {
-                    HStack(spacing: 3.5) {
+                    HStack(spacing: 3) {
                         Image(systemName: "timer")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8.5, weight: .bold))
                             .foregroundColor(Color(hex: "#30D158"))
                         Text(activeTimerFormattedString)
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundColor(Color(hex: "#30D158"))
                     }
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, 4.5)
+                    .padding(.vertical, 1.5)
                     .background(Capsule().fill(Color(hex: "#30D158").opacity(0.16)))
                 } else {
                     let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
                     Text("\(Int(temp))°C")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                         .foregroundColor(Color.white.opacity(0.65))
                 }
             }
             .contentShape(Rectangle())
             .onTapGesture { expand() }
         }
-        .frame(height: 28)
-        .padding(.horizontal, 14)
+        .frame(height: 26)
+        .padding(.horizontal, 11)
         .contentShape(Rectangle())
         .onTapGesture { expand() }
     }
     
     // MARK: - 2. Expanded Shelf Content
     private var expandedShelfContent: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 8) {
             // Top Navigation & Utility Bar
             HStack(spacing: 6) {
-                // Segmented Tab Switcher
+                // Segmented Capsule Tab Switcher
                 HStack(spacing: 2) {
                     ForEach(MacPulseShelfTab.allCases, id: \.self) { tab in
                         Button {
@@ -498,22 +626,22 @@ public struct HallmarkDynamicIslandRootView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: tab.icon)
-                                    .font(.system(size: 8.5, weight: .medium))
+                                    .font(.system(size: 9, weight: .medium))
                                 Text(tab.rawValue)
                                     .font(.system(size: 10, weight: controller.activeTab == tab ? .semibold : .regular))
                             }
                             .foregroundColor(controller.activeTab == tab ? .white : Color.white.opacity(0.55))
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 9)
                             .padding(.vertical, 3.5)
                             .background(
                                 Capsule()
-                                    .fill(controller.activeTab == tab ? Color.white.opacity(0.16) : Color.clear)
+                                    .fill(controller.activeTab == tab ? Color.white.opacity(0.15) : Color.clear)
                             )
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(2)
+                .padding(2.5)
                 .background(Capsule().fill(Color.white.opacity(0.06)))
                 
                 Spacer()
@@ -521,7 +649,7 @@ public struct HallmarkDynamicIslandRootView: View {
                 // Clock Stamp
                 Text(currentTimeString)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(Color.white.opacity(0.60))
+                    .foregroundColor(Color.white.opacity(0.50))
                     .padding(.trailing, 2)
                 
                 // Settings Action
@@ -531,7 +659,7 @@ public struct HallmarkDynamicIslandRootView: View {
                     Image(systemName: "gearshape")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(Color.white.opacity(0.70))
-                        .frame(width: 20, height: 20)
+                        .frame(width: 22, height: 22)
                         .background(Circle().fill(Color.white.opacity(0.08)))
                 }
                 .buttonStyle(.plain)
@@ -544,16 +672,16 @@ public struct HallmarkDynamicIslandRootView: View {
                     Image(systemName: "chevron.up")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundColor(Color.white.opacity(0.85))
-                        .frame(width: 20, height: 20)
-                        .background(Circle().fill(Color.white.opacity(0.12)))
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color.white.opacity(0.10)))
                 }
                 .buttonStyle(.plain)
                 .help("Collapse Shelf")
             }
             .padding(.horizontal, 14)
-            .padding(.top, 7)
+            .padding(.top, 8)
             
-            // Dynamic Body Section
+            // Dynamic Body Section (108pt Content Canvas)
             Group {
                 switch controller.activeTab {
                 case .overview:
@@ -567,53 +695,53 @@ public struct HallmarkDynamicIslandRootView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.bottom, 9)
+            .padding(.bottom, 10)
         }
     }
     
-    // MARK: - 3. Signature Overview Suite (3-Card Harmonized Apple Architecture)
+    // MARK: - 3. Unified Hero Architecture (NotchNook 2-Zone Apple Layout)
     private var overviewSuiteView: some View {
-        HStack(spacing: 8) {
-            // Card 1: Today's Internet Usage & Telemetry Wave
-            cardNetworkOverview
+        HStack(spacing: 10) {
+            // Zone A: Hero Card (Left ~58%) — Today's Data & Telemetry Wave
+            cardNetworkHero
                 .frame(maxWidth: .infinity)
             
-            // Card 2: System Telemetry & Micro-Gauges
-            cardSystemOverview
-                .frame(maxWidth: .infinity)
-            
-            // Card 3: Focus & Timer Quick Control
-            cardTimerOverview
-                .frame(width: 170)
+            // Zone B: Action Stack (Right ~42%) — Stacked Vitals + Focus Quick Controls
+            VStack(spacing: 8) {
+                quickVitalsCapsule
+                quickFocusCapsule
+            }
+            .frame(width: 195)
         }
+        .frame(height: 108)
     }
     
-    // MARK: - Card 1: Network & Bandwidth Card
-    private var cardNetworkOverview: some View {
+    // MARK: - Zone A: Bandwidth Hero Card
+    private var cardNetworkHero: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header Row
+            // Top Row
             HStack {
                 HStack(spacing: 5) {
                     Image(systemName: "wifi")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 10.5, weight: .bold))
                         .foregroundColor(Color(hex: "#38BDF8"))
-                    Text("TODAY'S DATA")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    Text("TODAY'S USAGE")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundColor(Color.white.opacity(0.50))
                 }
                 Spacer()
                 let downSpeed = NetworkUnitFormatter.formatSpeed(net.currentDownloadSpeed)
-                Text("↓\(downSpeed.value) \(downSpeed.unit)")
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                Text("↓ \(downSpeed.value) \(downSpeed.unit)")
+                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
                     .foregroundColor(net.currentDownloadSpeed > 500 ? Color(hex: "#38BDF8") : Color.white.opacity(0.45))
             }
             
-            // Metric & Wave
+            // Main Stat & Wave
             HStack(alignment: .bottom, spacing: 8) {
                 let todayTotal = history.todayDownloadBytes + history.todayUploadBytes
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NetworkUnitFormatter.formatBytes(todayTotal))
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .lineLimit(1)
                     
@@ -637,15 +765,17 @@ public struct HallmarkDynamicIslandRootView: View {
                     showFill: true,
                     strokeWidth: 1.5
                 )
-                .frame(width: 68, height: 26)
+                .frame(width: 84, height: 32)
             }
+            
+            Spacer(minLength: 0)
             
             // Footer Info
             HStack(spacing: 4) {
                 Circle()
                     .fill(net.isConnected ? Color(hex: "#30D158") : Color.orange)
                     .frame(width: 4, height: 4)
-                Text(net.activeInterfaceName.isEmpty ? "Connected" : net.activeInterfaceName)
+                Text(net.activeInterfaceName.isEmpty ? "Connected" : "Wi-Fi (\(net.activeInterfaceName))")
                     .font(.system(size: 8.5, weight: .medium))
                     .foregroundColor(Color.white.opacity(0.50))
                 
@@ -660,298 +790,209 @@ public struct HallmarkDynamicIslandRootView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(9)
-        .frame(height: 92)
+        .padding(10)
+        .frame(height: 108)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
                 )
         )
     }
     
-    // MARK: - Card 2: System Telemetry Card
-    private var cardSystemOverview: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Header Row
-            HStack {
-                HStack(spacing: 5) {
-                    Image(systemName: "cpu")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(hex: "#A855F7"))
-                    Text("SYSTEM VITALS")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.white.opacity(0.50))
-                }
-                Spacer()
-                Text("\(sys.cpu.coreCount) Cores")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(Color.white.opacity(0.40))
-            }
-            
-            // Progress Micro-Gauges
-            VStack(spacing: 5) {
-                // CPU Bar
-                HStack(spacing: 6) {
-                    Text("CPU")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(Color.white.opacity(0.60))
-                        .frame(width: 25, alignment: .leading)
-                    
-                    GeometryReader { g in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.08))
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(hex: "#38BDF8"), Color(hex: "#00F2FE")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: max(4, g.size.width * CGFloat(min(1.0, sys.cpu.usagePercentage / 100.0))))
-                        }
-                    }
-                    .frame(height: 4)
-                    
-                    Text("\(Int(sys.cpu.usagePercentage))%")
-                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.white)
-                        .frame(width: 28, alignment: .trailing)
-                }
-                
-                // RAM Bar
-                HStack(spacing: 6) {
-                    Text("RAM")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(Color.white.opacity(0.60))
-                        .frame(width: 25, alignment: .leading)
-                    
-                    GeometryReader { g in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.08))
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(hex: "#A855F7"), Color(hex: "#EC4899")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: max(4, g.size.width * CGFloat(min(1.0, sys.ram.usagePercentage / 100.0))))
-                        }
-                    }
-                    .frame(height: 4)
-                    
-                    Text("\(Int(sys.ram.usagePercentage))%")
-                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.white)
-                        .frame(width: 28, alignment: .trailing)
-                }
-            }
-            
-            // Footer: Thermals & Battery
-            HStack {
-                let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
-                HStack(spacing: 3) {
-                    Image(systemName: "thermometer.medium")
-                        .font(.system(size: 8.5))
-                        .foregroundColor(Color(hex: "#FF9F0A"))
-                    Text("\(Int(temp))°C")
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color.white.opacity(0.70))
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 3) {
-                    Image(systemName: sys.battery.isCharging ? "bolt.fill" : "battery.75")
-                        .font(.system(size: 8.5))
-                        .foregroundColor(sys.battery.isCharging ? Color(hex: "#30D158") : Color.white.opacity(0.70))
-                    Text("\(sys.battery.percentage)%")
-                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color.white.opacity(0.70))
-                }
-            }
-        }
-        .padding(9)
-        .frame(height: 92)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
-                )
-        )
-    }
-    
-    // MARK: - Card 3: Focus & Timer Card
-    private var cardTimerOverview: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Header Row
-            HStack {
-                HStack(spacing: 5) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(hex: "#30D158"))
-                    Text("FOCUS")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.white.opacity(0.50))
-                }
-                Spacer()
-                Text(isTimerCurrentlyRunning ? "Active" : "Idle")
-                    .font(.system(size: 8.5, weight: .medium))
-                    .foregroundColor(isTimerCurrentlyRunning ? Color(hex: "#30D158") : Color.white.opacity(0.40))
-            }
-            
-            // Readout & Start Button
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(currentTimerDisplayTime)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                    
-                    Text("\(selectedPresetMinutes)m target")
-                        .font(.system(size: 8.5, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.40))
-                }
-                
-                Spacer()
-                
-                Button {
-                    toggleTimerAction()
-                    playSoftHaptic()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                isTimerCurrentlyRunning
-                                    ? LinearGradient(colors: [Color(hex: "#FF9F0A"), Color(hex: "#FFD60A")], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                    : LinearGradient(colors: [Color(hex: "#30D158"), Color(hex: "#20C997")], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 30, height: 30)
-                            .shadow(color: (isTimerCurrentlyRunning ? Color(hex: "#FF9F0A") : Color(hex: "#30D158")).opacity(0.35), radius: 4)
-                        
-                        Image(systemName: isTimerCurrentlyRunning ? "pause.fill" : "play.fill")
-                            .font(.system(size: 10.5, weight: .black))
-                            .foregroundColor(.black)
-                            .offset(x: isTimerCurrentlyRunning ? 0 : 1)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            
-            // Quick Presets
-            HStack(spacing: 4) {
-                quickPresetButton("15m", 15)
-                quickPresetButton("25m", 25)
-                quickPresetButton("45m", 45)
-                
-                Spacer()
-                
-                Button("Reset") {
-                    resetTimerAction()
-                    playSoftHaptic()
-                }
-                .font(.system(size: 8.5, weight: .medium))
-                .foregroundColor(Color.white.opacity(0.40))
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(9)
-        .frame(height: 92)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
-                )
-        )
-    }
-    
-    private func quickPresetButton(_ label: String, _ mins: Int) -> some View {
+    // MARK: - Zone B: Quick Action 1 — Vitals Capsule
+    private var quickVitalsCapsule: some View {
         Button {
-            setTimerDuration(mins)
+            controller.activeTab = .vitals
             playSoftHaptic()
         } label: {
-            Text(label)
-                .font(.system(size: 8.5, weight: .semibold))
-                .foregroundColor(selectedPresetMinutes == mins ? Color(hex: "#38BDF8") : Color.white.opacity(0.55))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2.5)
-                .background(
-                    Capsule()
-                        .fill(selectedPresetMinutes == mins ? Color(hex: "#38BDF8").opacity(0.18) : Color.white.opacity(0.06))
-                )
+            HStack(spacing: 8) {
+                // Left Icon Badge
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "#007AFF").opacity(0.18))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: "cpu")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(hex: "#38BDF8"))
+                }
+                
+                // Gauges
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("Vitals")
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                        let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
+                        Text("\(Int(temp))°C")
+                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                            .foregroundColor(Color.white.opacity(0.60))
+                    }
+                    
+                    HStack(spacing: 6) {
+                        Text("CPU \(Int(sys.cpu.usagePercentage))%")
+                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                            .foregroundColor(Color.white.opacity(0.70))
+                        Text("•")
+                            .font(.system(size: 7))
+                            .foregroundColor(Color.white.opacity(0.30))
+                        Text("RAM \(Int(sys.ram.usagePercentage))%")
+                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                            .foregroundColor(Color.white.opacity(0.70))
+                    }
+                }
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(Color.white.opacity(0.30))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(height: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
+                    )
+            )
         }
         .buttonStyle(.plain)
     }
     
-    // MARK: - Tab 2: Detailed Vitals View
+    // MARK: - Zone B: Quick Action 2 — Focus Capsule
+    private var quickFocusCapsule: some View {
+        HStack(spacing: 8) {
+            // Left Icon Badge
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#30D158").opacity(0.18))
+                    .frame(width: 26, height: 26)
+                Image(systemName: "timer")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "#30D158"))
+            }
+            .onTapGesture {
+                controller.activeTab = .timer
+                playSoftHaptic()
+            }
+            
+            // Time Readout
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isTimerCurrentlyRunning ? "Focusing" : "Focus Timer")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Text(currentTimerDisplayTime)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundColor(isTimerCurrentlyRunning ? Color(hex: "#30D158") : Color.white.opacity(0.85))
+            }
+            .onTapGesture {
+                controller.activeTab = .timer
+                playSoftHaptic()
+            }
+            
+            Spacer()
+            
+            // Circular Start/Pause Button
+            Button {
+                toggleTimerAction()
+                playSoftHaptic()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(
+                            isTimerCurrentlyRunning
+                                ? LinearGradient(colors: [Color(hex: "#FF9F0A"), Color(hex: "#FFD60A")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                : LinearGradient(colors: [Color(hex: "#30D158"), Color(hex: "#20C997")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 26, height: 26)
+                    
+                    Image(systemName: isTimerCurrentlyRunning ? "pause.fill" : "play.fill")
+                        .font(.system(size: 9.5, weight: .black))
+                        .foregroundColor(.black)
+                        .offset(x: isTimerCurrentlyRunning ? 0 : 0.8)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(height: 50)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
+                )
+        )
+    }
+    
+    // MARK: - Tab 2: Detailed Vitals View (Unified Triple Gauge)
     private var detailedVitalsView: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             // CPU Deep Dive
             VStack(alignment: .leading, spacing: 4) {
                 Text("PROCESSOR")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.45))
                 Text("\(Int(sys.cpu.usagePercentage))% Load")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                 Text("\(sys.cpu.coreCount) Active Cores")
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 8.5, weight: .medium))
                     .foregroundColor(Color.white.opacity(0.50))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.04)))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
             
             // Memory Deep Dive
             VStack(alignment: .leading, spacing: 4) {
                 Text("UNIFIED MEMORY")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.45))
                 Text("\(Int(sys.ram.usagePercentage))% Used")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(Color(hex: "#A855F7"))
                 let usedGB = Double(sys.ram.usedBytes) / 1_073_741_824.0
                 let totalGB = Double(sys.ram.totalBytes) / 1_073_741_824.0
-                Text(String(format: "%.1f GB of %.0f GB", usedGB, totalGB))
-                    .font(.system(size: 9, weight: .medium))
+                Text(String(format: "%.1f / %.0f GB", usedGB, totalGB))
+                    .font(.system(size: 8.5, weight: .medium))
                     .foregroundColor(Color.white.opacity(0.50))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.04)))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
             
             // Power & Thermals
             VStack(alignment: .leading, spacing: 4) {
-                Text("THERMALS & POWER")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                Text("POWER & HEAT")
+                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.45))
                 let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
                 Text("\(Int(temp))°C Normal")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(Color(hex: "#FF9F0A"))
-                Text("\(sys.battery.percentage)% Battery • \(sys.battery.isCharging ? "Charging" : "Discharging")")
-                    .font(.system(size: 9, weight: .medium))
+                Text("\(sys.battery.percentage)% • \(sys.battery.isCharging ? "Charging" : "Battery")")
+                    .font(.system(size: 8.5, weight: .medium))
                     .foregroundColor(Color.white.opacity(0.50))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.04)))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
         }
-        .frame(height: 92)
+        .frame(height: 108)
     }
     
     // MARK: - Tab 3: Detailed Interactive Focus Suite
     private var detailedTimerView: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             // Mode Selectors
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(TimerTab.allCases, id: \.self) { tab in
@@ -963,20 +1004,23 @@ public struct HallmarkDynamicIslandRootView: View {
                             Image(systemName: tab.icon)
                             Text(tab.rawValue)
                         }
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(timer.activeTab == tab ? Color(hex: "#38BDF8") : Color.white.opacity(0.6))
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(timer.activeTab == tab ? Color(hex: "#38BDF8") : Color.white.opacity(0.55))
                         .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
+                        .padding(.vertical, 3.5)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(timer.activeTab == tab ? Color(hex: "#38BDF8").opacity(0.15) : Color.clear))
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(timer.activeTab == tab ? Color(hex: "#38BDF8").opacity(0.15) : Color.clear)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .frame(width: 95)
+            .frame(width: 90)
             
             // Big Counter Display
-            VStack(spacing: 2) {
+            VStack(spacing: 4) {
                 Text(currentTimerDisplayTime)
                     .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundColor(.white)
@@ -992,7 +1036,7 @@ public struct HallmarkDynamicIslandRootView: View {
             .frame(maxWidth: .infinity)
             
             // Action Controls
-            VStack(spacing: 5) {
+            VStack(spacing: 6) {
                 Button {
                     toggleTimerAction()
                     playSoftHaptic()
@@ -1010,15 +1054,15 @@ public struct HallmarkDynamicIslandRootView: View {
                     resetTimerAction()
                     playSoftHaptic()
                 }
-                .font(.system(size: 9.5))
-                .foregroundColor(Color.white.opacity(0.65))
+                .font(.system(size: 9))
+                .foregroundColor(Color.white.opacity(0.50))
                 .buttonStyle(.plain)
             }
             .frame(width: 70)
         }
         .padding(10)
-        .frame(height: 92)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
+        .frame(height: 108)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
     }
     
     // MARK: - Tab 4: History Tray View (Past 7 Days Usage)
@@ -1033,7 +1077,7 @@ public struct HallmarkDynamicIslandRootView: View {
                     let maxBytes = max(1024 * 1024 * 100, past.map { $0.bytesReceived + $0.bytesSent }.max() ?? 1)
                     let ratio = CGFloat(min(1.0, Double(total) / Double(maxBytes)))
                     
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [Color(hex: "#38BDF8"), Color(hex: "#A855F7")],
@@ -1057,8 +1101,26 @@ public struct HallmarkDynamicIslandRootView: View {
             }
         }
         .padding(10)
-        .frame(height: 92)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
+        .frame(height: 108)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
+    }
+    
+    private func quickPresetButton(_ label: String, _ mins: Int) -> some View {
+        Button {
+            setTimerDuration(mins)
+            playSoftHaptic()
+        } label: {
+            Text(label)
+                .font(.system(size: 8.5, weight: .semibold))
+                .foregroundColor(selectedPresetMinutes == mins ? Color(hex: "#38BDF8") : Color.white.opacity(0.55))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2.5)
+                .background(
+                    Capsule()
+                        .fill(selectedPresetMinutes == mins ? Color(hex: "#38BDF8").opacity(0.18) : Color.white.opacity(0.06))
+                )
+        }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Timer Logic & Display Helpers
