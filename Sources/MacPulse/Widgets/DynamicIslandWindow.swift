@@ -808,8 +808,8 @@ public struct HallmarkDynamicIslandRootView: View {
                 currentTabView
                     .transition(.opacity)
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
         }
     }
     

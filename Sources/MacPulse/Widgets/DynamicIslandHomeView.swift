@@ -23,12 +23,12 @@ public struct DynamicIslandHomeView: View {
     }
     
     public var body: some View {
-        HStack(spacing: MacPulseSpacing.lg) {
+        HStack(spacing: 12) {
             mediaPlayerCard
                 .frame(maxWidth: .infinity)
             
             actionStack
-                .frame(width: 175)
+                .frame(width: 196)
         }
         .frame(height: MacPulseDimensions.contentHeight)
     }
@@ -36,25 +36,77 @@ public struct DynamicIslandHomeView: View {
     // MARK: - Quick Action Buttons Stack (Monochromatic Apple Styling)
     private var actionStack: some View {
         VStack(spacing: 10) {
+            // Row 1: Quit All Apps (Full Width)
             quickActionCard(
                 title: "Quit All Apps",
-                subtitle: "Force close background apps",
+                subtitle: "Quit background apps",
                 icon: "sparkles"
             ) {
                 media.quitAllApps()
                 controller.triggerToast(title: "Apps Closed", subtitle: "All inactive apps terminated")
             }
             
-            quickActionCard(
-                title: "Terminal",
-                subtitle: "Quick shell command access",
-                icon: "apple.terminal",
-                isExternal: true
-            ) {
-                media.openTerminal()
+            // Row 2: Split Action Row (Terminal & Camera)
+            HStack(spacing: 8) {
+                actionTile(
+                    title: "Terminal",
+                    icon: "apple.terminal",
+                    isExternal: true
+                ) {
+                    media.openTerminal()
+                    controller.triggerToast(title: "Terminal", subtitle: "Terminal launched")
+                }
+                
+                actionTile(
+                    title: "Camera",
+                    icon: "camera.fill",
+                    isExternal: true
+                ) {
+                    media.openCamera()
+                    controller.triggerToast(title: "Camera", subtitle: "Photo Booth opened")
+                }
             }
+            .frame(height: 52)
         }
         .frame(height: MacPulseDimensions.contentHeight)
+    }
+    
+    private func actionTile(
+        title: String,
+        icon: String,
+        isExternal: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            HapticFeedback.playSoft()
+            action()
+        } label: {
+            HStack(spacing: 7) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: icon)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .fixedSize()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
+                    .fill(MacPulseColors.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
+                            .stroke(MacPulseColors.hairline, lineWidth: 0.6)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
     
     private func quickActionCard(

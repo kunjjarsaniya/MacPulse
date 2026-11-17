@@ -305,6 +305,15 @@ public final class MediaManager: ObservableObject {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"))
     }
     
+    public func openCamera() {
+        let photoBoothURL = URL(fileURLWithPath: "/System/Applications/Photo Booth.app")
+        if FileManager.default.fileExists(atPath: photoBoothURL.path) {
+            NSWorkspace.shared.open(photoBoothURL)
+        } else if let ftURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.FaceTime") {
+            NSWorkspace.shared.open(ftURL)
+        }
+    }
+    
     public func openActivityMonitor() {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app"))
     }
