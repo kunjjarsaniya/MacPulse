@@ -27,31 +27,64 @@ public struct DynamicIslandStatsView: View {
         VStack(spacing: MacPulseSpacing.sm) {
             // CPU & RAM Row
             IslandCard(cornerRadius: MacPulseRadius.card) {
-                HStack(spacing: MacPulseSpacing.sm) {
-                    VStack(alignment: .leading, spacing: MacPulseSpacing.xxs) {
+                HStack(spacing: MacPulseSpacing.md) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text("PROCESSOR")
                             .font(MacPulseTypography.caption2Bold)
                             .foregroundColor(MacPulseColors.textTertiary)
+                        
                         Text("\(Int(sys.cpu.usagePercentage))% Load")
                             .font(MacPulseTypography.metric)
+                            .monospacedDigit()
                             .foregroundColor(MacPulseColors.textPrimary)
+                        
+                        // Mini Live Progress Bar
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.08))
+                                    .frame(height: 3)
+                                Capsule()
+                                    .fill(MacPulseColors.appleCyan)
+                                    .frame(width: max(3, geo.size.width * CGFloat(min(sys.cpu.usagePercentage / 100.0, 1.0))), height: 3)
+                            }
+                        }
+                        .frame(height: 3)
+                        
                         Text("\(sys.cpu.coreCount) Active Cores")
                             .font(MacPulseTypography.caption2)
                             .foregroundColor(MacPulseColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    VStack(alignment: .leading, spacing: MacPulseSpacing.xxs) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text("UNIFIED MEMORY")
                             .font(MacPulseTypography.caption2Bold)
                             .foregroundColor(MacPulseColors.textTertiary)
+                        
                         Text("\(Int(sys.ram.usagePercentage))% Used")
                             .font(MacPulseTypography.metric)
+                            .monospacedDigit()
                             .foregroundColor(MacPulseColors.applePurple)
+                        
+                        // Mini Live Progress Bar
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.08))
+                                    .frame(height: 3)
+                                Capsule()
+                                    .fill(MacPulseColors.applePurple)
+                                    .frame(width: max(3, geo.size.width * CGFloat(min(sys.ram.usagePercentage / 100.0, 1.0))), height: 3)
+                            }
+                        }
+                        .frame(height: 3)
+                        
                         let usedGB = Double(sys.ram.usedBytes) / 1_073_741_824.0
                         let totalGB = Double(sys.ram.totalBytes) / 1_073_741_824.0
                         Text(String(format: "%.1f/%.0f GB", usedGB, totalGB))
                             .font(MacPulseTypography.caption2)
+                            .monospacedDigit()
                             .foregroundColor(MacPulseColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,15 +164,17 @@ public struct DynamicIslandStatsView: View {
     }
     
     private func processRow(for proc: TopProcessItem) -> some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             if let img = proc.icon {
                 Image(nsImage: img)
                     .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: MacPulseDimensions.iconSmall, height: MacPulseDimensions.iconSmall)
+                    .clipShape(RoundedRectangle(cornerRadius: 3.5, style: .continuous))
             } else {
-                Image(systemName: "app.dashed")
-                    .font(.system(size: 11))
-                    .foregroundColor(MacPulseColors.textTertiary)
+                Image(systemName: "cpu")
+                    .font(.system(size: 8.5))
+                    .foregroundColor(MacPulseColors.textSecondary)
                     .frame(width: MacPulseDimensions.iconSmall, height: MacPulseDimensions.iconSmall)
             }
             

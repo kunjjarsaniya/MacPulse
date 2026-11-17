@@ -535,70 +535,76 @@ public struct HallmarkDynamicIslandRootView: View {
                 .transition(.scale(scale: 0.95).combined(with: .opacity))
             } else {
                 HStack(spacing: 0) {
+                    Spacer(minLength: 2)
+                    
                     // 1. Wi-Fi Usage
-                    HStack(spacing: 4.5) {
+                    HStack(spacing: 4) {
                         Image(systemName: "wifi")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 9.5, weight: .semibold))
                             .foregroundColor(MacPulseColors.appleCyan)
                         
                         let todayTotal = history.todayDownloadBytes + history.todayUploadBytes
                         Text(NetworkUnitFormatter.formatBytes(todayTotal))
-                            .font(MacPulseTypography.footnoteRounded)
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundColor(MacPulseColors.textPrimary)
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { expand() }
                     
-                    Spacer(minLength: MacPulseSpacing.xs)
+                    Spacer(minLength: 4)
                     
-                    // Subtle Hairline Divider
-                    Rectangle()
-                        .fill(MacPulseColors.divider)
-                        .frame(width: 1, height: 10)
+                    // Subtle Translucent Separator Dot
+                    Circle()
+                        .fill(Color.white.opacity(0.20))
+                        .frame(width: 2.5, height: 2.5)
                     
-                    Spacer(minLength: MacPulseSpacing.xs)
+                    Spacer(minLength: 4)
                     
-                    // 2. Hardware Vitals
-                    HStack(spacing: MacPulseSpacing.sm) {
-                        HStack(spacing: 3) {
+                    // 2. Hardware Vitals (CPU & RAM)
+                    HStack(spacing: 7) {
+                        HStack(spacing: 2.5) {
                             Image(systemName: "cpu")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(MacPulseColors.textSecondary)
+                                .font(.system(size: 8.5, weight: .medium))
+                                .foregroundColor(MacPulseColors.textTertiary)
                             Text("\(Int(sys.cpu.usagePercentage))%")
-                                .font(MacPulseTypography.metricMono)
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .monospacedDigit()
                                 .foregroundColor(MacPulseColors.textPrimary)
                         }
                         
-                        HStack(spacing: 3) {
+                        HStack(spacing: 2.5) {
                             Image(systemName: "memorychip")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(MacPulseColors.textSecondary)
+                                .font(.system(size: 8.5, weight: .medium))
+                                .foregroundColor(MacPulseColors.textTertiary)
                             Text("\(Int(sys.ram.usagePercentage))%")
-                                .font(MacPulseTypography.metricMono)
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .monospacedDigit()
                                 .foregroundColor(MacPulseColors.textPrimary)
                         }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { expand() }
                     
-                    Spacer(minLength: MacPulseSpacing.xs)
+                    Spacer(minLength: 4)
                     
-                    // Subtle Hairline Divider
-                    Rectangle()
-                        .fill(MacPulseColors.divider)
-                        .frame(width: 1, height: 10)
+                    // Subtle Translucent Separator Dot
+                    Circle()
+                        .fill(Color.white.opacity(0.20))
+                        .frame(width: 2.5, height: 2.5)
                     
-                    Spacer(minLength: MacPulseSpacing.xs)
+                    Spacer(minLength: 4)
                     
                     // 3. Status Metric: Active Timer OR Thermals
                     Group {
                         if isAnyTimerRunning {
                             HStack(spacing: 3) {
                                 Image(systemName: "timer")
-                                    .font(MacPulseTypography.micro)
+                                    .font(.system(size: 8, weight: .bold))
                                     .foregroundColor(MacPulseColors.appleGreen)
                                 Text(activeTimerFormattedString)
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                    .monospacedDigit()
                                     .foregroundColor(MacPulseColors.appleGreen)
                             }
                             .padding(.horizontal, 4.5)
@@ -607,15 +613,18 @@ public struct HallmarkDynamicIslandRootView: View {
                         } else {
                             let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
                             Text("\(Int(temp))°C")
-                                .font(MacPulseTypography.metricMono)
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .monospacedDigit()
                                 .foregroundColor(MacPulseColors.textSecondary)
                         }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { expand() }
+                    
+                    Spacer(minLength: 2)
                 }
                 .frame(height: 26)
-                .padding(.horizontal, 11)
+                .padding(.horizontal, 8)
                 .contentShape(Rectangle())
                 .onTapGesture { expand() }
                 .transition(.opacity)

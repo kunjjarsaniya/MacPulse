@@ -130,6 +130,7 @@ public struct DynamicIslandTimerView: View {
         VStack(spacing: MacPulseSpacing.xs) {
             Text(currentTimerDisplayTime)
                 .font(MacPulseTypography.timerDisplay)
+                .monospacedDigit()
                 .foregroundColor(MacPulseColors.textPrimary)
             
             HStack(spacing: MacPulseSpacing.xs) {

@@ -44,12 +44,12 @@ public struct DynamicIslandShelfView: View {
         .background(
             RoundedRectangle(cornerRadius: MacPulseRadius.shelf, style: .continuous)
                 .strokeBorder(
-                    shelf.isTargeted ? MacPulseColors.appleCyan : MacPulseColors.borderMedium,
-                    style: StrokeStyle(lineWidth: 1.5, dash: [6])
+                    shelf.isTargeted ? MacPulseColors.appleCyan : Color.white.opacity(0.12),
+                    style: StrokeStyle(lineWidth: 1.0, dash: [4, 4])
                 )
                 .background(
                     RoundedRectangle(cornerRadius: MacPulseRadius.shelf, style: .continuous)
-                        .fill(MacPulseColors.cardBackgroundSubtle)
+                        .fill(shelf.isTargeted ? MacPulseColors.appleCyan.opacity(0.08) : MacPulseColors.cardBackgroundSubtle)
                 )
         )
     }
