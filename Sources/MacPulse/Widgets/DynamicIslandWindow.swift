@@ -123,6 +123,7 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var toastSubtitle: String = ""
     @Published public var activeLiveActivityText: String? = nil
     @Published public var activeHUD: DynamicIslandHUDType? = nil
+    @Published public var showCameraMirror: Bool = false
     
     private var liveActivityTimer: DispatchWorkItem?
     private var scrollEventMonitor: Any?
@@ -227,6 +228,7 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleTabTimer), name: NSNotification.Name("com.macpulse.tab.timer"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabClipboard), name: NSNotification.Name("com.macpulse.tab.clipboard"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabNotes), name: NSNotification.Name("com.macpulse.tab.notes"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleToggleMirror), name: NSNotification.Name("com.macpulse.toggleMirror"), object: nil, suspensionBehavior: .deliverImmediately)
         
         // Volume & Brightness HUD notifications
         center.addObserver(self, selector: #selector(handleToggleVolumeHUD), name: NSNotification.Name("com.macpulse.toggleVolumeHUD"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -242,6 +244,8 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabHome() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .home
             self?.expand()
         }
@@ -249,6 +253,8 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabShelf() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .shelf
             self?.expand()
         }
@@ -256,6 +262,8 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabStats() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .stats
             self?.expand()
         }
@@ -263,6 +271,8 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabTimer() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .timer
             self?.expand()
         }
@@ -270,6 +280,8 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabClipboard() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .clipboard
             self?.expand()
         }
@@ -277,8 +289,17 @@ public final class DynamicIslandController: ObservableObject {
     @objc private func handleTabNotes() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self?.activeTab = .notes
             self?.expand()
+        }
+    }
+    
+    @objc private func handleToggleMirror() {
+        DispatchQueue.main.async { [weak self] in
+            self?.expand()
+            self?.toggleCameraMirror()
         }
     }
     
@@ -337,9 +358,23 @@ public final class DynamicIslandController: ObservableObject {
             guard let self = self else { return }
             self.isExpanded = false
             self.activeHUD = nil
+            self.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
             self.showToast = false
             self.stopMonitoringClickOutside()
             self.updateWindowSize(expanded: false)
+        }
+    }
+    
+    public func toggleCameraMirror() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.showCameraMirror.toggle()
+            if self.showCameraMirror {
+                CameraMirrorManager.shared.start()
+            } else {
+                CameraMirrorManager.shared.stop()
+            }
         }
     }
     
@@ -439,6 +474,7 @@ public final class DynamicIslandController: ObservableObject {
     
     public func close() {
         stopMonitoringClickOutside()
+        CameraMirrorManager.shared.stop()
         window?.orderOut(nil)
     }
     
@@ -805,8 +841,13 @@ public struct HallmarkDynamicIslandRootView: View {
             
             // Dynamic Body Section (Content Canvas)
             ZStack {
-                currentTabView
-                    .transition(.opacity)
+                if controller.showCameraMirror {
+                    DynamicIslandMirrorView()
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                } else {
+                    currentTabView
+                        .transition(.opacity)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)

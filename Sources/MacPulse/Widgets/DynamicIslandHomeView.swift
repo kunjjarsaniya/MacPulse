@@ -46,24 +46,25 @@ public struct DynamicIslandHomeView: View {
                 controller.triggerToast(title: "Apps Closed", subtitle: "All inactive apps terminated")
             }
             
-            // Row 2: Split Action Row (Terminal & Camera)
+            // Row 2: Split Action Row (Terminal & Camera Mirror - Pure Icon Style)
             HStack(spacing: 8) {
-                actionTile(
-                    title: "Terminal",
+                iconActionTile(
                     icon: "apple.terminal",
-                    isExternal: true
+                    isActive: false,
+                    tooltip: "Terminal"
                 ) {
                     media.openTerminal()
                     controller.triggerToast(title: "Terminal", subtitle: "Terminal launched")
                 }
                 
-                actionTile(
-                    title: "Camera",
-                    icon: "camera.fill",
-                    isExternal: true
+                iconActionTile(
+                    icon: controller.showCameraMirror ? "web.camera.fill" : "web.camera",
+                    isActive: controller.showCameraMirror,
+                    tooltip: "Camera Mirror"
                 ) {
-                    media.openCamera()
-                    controller.triggerToast(title: "Camera", subtitle: "Photo Booth opened")
+                    withAnimation(MacPulseAnimations.islandSpring) {
+                        controller.toggleCameraMirror()
+                    }
                 }
             }
             .frame(height: 52)
@@ -71,42 +72,32 @@ public struct DynamicIslandHomeView: View {
         .frame(height: MacPulseDimensions.contentHeight)
     }
     
-    private func actionTile(
-        title: String,
+    private func iconActionTile(
         icon: String,
-        isExternal: Bool = false,
+        isActive: Bool = false,
+        tooltip: String,
         action: @escaping () -> Void
     ) -> some View {
         Button {
             HapticFeedback.playSoft()
             action()
         } label: {
-            HStack(spacing: 7) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
-                        .frame(width: 26, height: 26)
-                    Image(systemName: icon)
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
-                    .fixedSize()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
+            ZStack {
                 RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                    .fill(MacPulseColors.cardBackground)
+                    .fill(isActive ? Color.white.opacity(0.18) : MacPulseColors.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                            .stroke(MacPulseColors.hairline, lineWidth: 0.6)
+                            .stroke(isActive ? Color.white.opacity(0.35) : MacPulseColors.hairline, lineWidth: 0.6)
                     )
-            )
+                
+                Image(systemName: icon)
+                    .font(.system(size: 17.5, weight: .semibold))
+                    .foregroundColor(isActive ? .white : Color.white.opacity(0.85))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .buttonStyle(.plain)
+        .help(tooltip)
     }
     
     private func quickActionCard(
