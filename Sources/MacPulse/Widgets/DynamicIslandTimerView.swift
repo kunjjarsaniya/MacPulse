@@ -111,13 +111,13 @@ public struct DynamicIslandTimerView: View {
                         Text(tab.rawValue)
                     }
                     .font(MacPulseTypography.footnoteSemibold)
-                    .foregroundColor(timer.activeTab == tab ? MacPulseColors.appleCyan : MacPulseColors.textSecondary)
+                    .foregroundColor(timer.activeTab == tab ? .white : MacPulseColors.textSecondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: MacPulseRadius.sm, style: .continuous)
-                            .fill(timer.activeTab == tab ? MacPulseColors.appleCyan.opacity(0.15) : Color.clear)
+                            .fill(timer.activeTab == tab ? Color.white.opacity(0.16) : Color.clear)
                     )
                 }
                 .buttonStyle(.plain)
@@ -155,9 +155,7 @@ public struct DynamicIslandTimerView: View {
                     .padding(.horizontal, MacPulseSpacing.gutter)
                     .padding(.vertical, 5)
                     .background(
-                        Capsule().fill(
-                            isTimerCurrentlyRunning ? MacPulseColors.appleYellow : MacPulseColors.appleGreen
-                        )
+                        Capsule().fill(Color.white)
                     )
             }
             .buttonStyle(.plain)
@@ -180,12 +178,12 @@ public struct DynamicIslandTimerView: View {
         } label: {
             Text(label)
                 .font(MacPulseTypography.captionBold)
-                .foregroundColor(selectedPresetMinutes == mins ? MacPulseColors.appleCyan : MacPulseColors.textSecondary)
+                .foregroundColor(selectedPresetMinutes == mins ? .white : MacPulseColors.textSecondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2.5)
                 .background(
                     Capsule().fill(
-                        selectedPresetMinutes == mins ? MacPulseColors.appleCyan.opacity(0.20) : MacPulseColors.pillBackground
+                        selectedPresetMinutes == mins ? Color.white.opacity(0.20) : MacPulseColors.pillBackground
                     )
                 )
         }

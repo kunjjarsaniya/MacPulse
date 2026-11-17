@@ -25,12 +25,12 @@ public struct DynamicIslandShelfView: View {
         }
     }
     
-    // MARK: - Empty Drop Zone
+    // MARK: - Empty Drop Zone (Monochromatic Apple Styling)
     private var emptyStateDropZone: some View {
         VStack(spacing: MacPulseSpacing.sm) {
             Image(systemName: "tray.and.arrow.down")
                 .font(.system(size: 24, weight: .medium))
-                .foregroundColor(MacPulseColors.appleCyan)
+                .foregroundColor(Color.white.opacity(0.80))
             
             Text("Drop Files to Stage")
                 .font(MacPulseTypography.headline)
@@ -44,12 +44,12 @@ public struct DynamicIslandShelfView: View {
         .background(
             RoundedRectangle(cornerRadius: MacPulseRadius.shelf, style: .continuous)
                 .strokeBorder(
-                    shelf.isTargeted ? MacPulseColors.appleCyan : Color.white.opacity(0.12),
+                    shelf.isTargeted ? Color.white.opacity(0.35) : Color.white.opacity(0.12),
                     style: StrokeStyle(lineWidth: 1.0, dash: [4, 4])
                 )
                 .background(
                     RoundedRectangle(cornerRadius: MacPulseRadius.shelf, style: .continuous)
-                        .fill(shelf.isTargeted ? MacPulseColors.appleCyan.opacity(0.08) : MacPulseColors.cardBackgroundSubtle)
+                        .fill(shelf.isTargeted ? Color.white.opacity(0.08) : MacPulseColors.cardBackgroundSubtle)
                 )
         )
     }

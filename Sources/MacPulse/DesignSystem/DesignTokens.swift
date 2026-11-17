@@ -28,9 +28,20 @@ public enum MacPulseColors {
     
     // MARK: - Typography & Text Tiers
     public static let textPrimary = Color.white
-    public static let textSecondary = Color.white.opacity(0.65)
-    public static let textTertiary = Color.white.opacity(0.45)
-    public static let textQuaternary = Color.white.opacity(0.28)
+    public static let textSecondary = Color.white.opacity(0.68)
+    public static let textTertiary = Color.white.opacity(0.42)
+    public static let textQuaternary = Color.white.opacity(0.24)
+    
+    // MARK: - Sophisticated Monochromatic Apple Palette
+    public static let monoPrimary = Color.white
+    public static let monoSecondary = Color.white.opacity(0.68)
+    public static let monoTertiary = Color.white.opacity(0.42)
+    public static let monoQuaternary = Color.white.opacity(0.24)
+    public static let monoBorder = Color.white.opacity(0.09)
+    public static let monoBorderHover = Color.white.opacity(0.18)
+    public static let monoSurface = Color.white.opacity(0.05)
+    public static let monoSurfaceElevated = Color.white.opacity(0.10)
+    public static let monoDivider = Color.white.opacity(0.16)
     
     // MARK: - Apple HIG Accent Colors
     public static let appleBlue = Color(hex: "#0A84FF")
@@ -124,17 +135,23 @@ public enum MacPulseRadius {
     public static let md: CGFloat = 8
     public static let button: CGFloat = 10
     public static let card: CGFloat = 12
-    public static let compactChassis: CGFloat = 13
+    public static let compactChassis: CGFloat = 14
     public static let shelf: CGFloat = 14
     public static let media: CGFloat = 15
     public static let large: CGFloat = 18
     public static let chassis: CGFloat = 22
     public static let pill: CGFloat = 999
+    
+    // Curved Notch Geometry (Apple-Engineered Continuity)
+    public static let topEarCompact: CGFloat = 8
+    public static let topEarExpanded: CGFloat = 12
+    public static let bottomCornerCompact: CGFloat = 14
+    public static let bottomCornerExpanded: CGFloat = 22
 }
 
 public enum MacPulseDimensions {
-    public static let compactIslandSize = NSSize(width: 236, height: 26)
-    public static let compactLiveActivitySize = NSSize(width: 270, height: 26)
+    public static let compactIslandSize = NSSize(width: 258, height: 28)
+    public static let compactLiveActivitySize = NSSize(width: 280, height: 28)
     public static let expandedIslandSize = NSSize(width: 560, height: 175)
     
     public static let contentHeight: CGFloat = 118

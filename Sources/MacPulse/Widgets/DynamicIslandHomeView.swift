@@ -11,11 +11,9 @@ public struct DynamicIslandHomeView: View {
     
     private var visualizerBarColor: Color {
         guard media.currentTrack.isPlaying else {
-            return MacPulseColors.textQuaternary
+            return Color.white.opacity(0.20)
         }
-        return media.currentTrack.playerSource == "Spotify"
-            ? MacPulseColors.spotifyGreen
-            : MacPulseColors.appleMusicRed
+        return Color.white.opacity(0.85)
     }
     
     private func visualizerBarHeight(at idx: Int) -> CGFloat {
@@ -35,13 +33,13 @@ public struct DynamicIslandHomeView: View {
         .frame(height: MacPulseDimensions.contentHeight)
     }
     
-    // MARK: - Quick Action Buttons Stack
+    // MARK: - Quick Action Buttons Stack (Monochromatic Apple Styling)
     private var actionStack: some View {
         VStack(spacing: MacPulseSpacing.sm) {
             IslandActionButton(
                 title: "Quit All Apps",
                 icon: "sparkles",
-                iconColor: MacPulseColors.appleYellow
+                iconColor: Color.white.opacity(0.85)
             ) {
                 media.quitAllApps()
                 controller.triggerToast(title: "Apps Closed", subtitle: "All inactive apps terminated")
@@ -50,7 +48,7 @@ public struct DynamicIslandHomeView: View {
             IslandActionButton(
                 title: "Terminal",
                 icon: "apple.terminal",
-                iconColor: MacPulseColors.appleCyan,
+                iconColor: Color.white.opacity(0.85),
                 accessory: {
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 8, weight: .medium))
@@ -63,10 +61,10 @@ public struct DynamicIslandHomeView: View {
             IslandActionButton(
                 title: "Mirror",
                 icon: "web.camera",
-                iconColor: MacPulseColors.appleGreen,
+                iconColor: Color.white.opacity(0.85),
                 accessory: {
                     Circle()
-                        .fill(controller.showCameraMirror ? MacPulseColors.appleGreen : MacPulseColors.borderFocus)
+                        .fill(controller.showCameraMirror ? Color.white : Color.white.opacity(0.20))
                         .frame(width: 6, height: 6)
                 }
             ) {
@@ -123,11 +121,7 @@ public struct DynamicIslandHomeView: View {
                 .foregroundColor(.white)
                 .padding(3.5)
                 .background(
-                    Circle().fill(
-                        media.currentTrack.playerSource == "Spotify"
-                            ? MacPulseColors.spotifyGreen
-                            : MacPulseColors.appleMusicRed
-                    )
+                    Circle().fill(Color.white.opacity(0.18))
                 )
                 .offset(x: 2, y: 2)
         }

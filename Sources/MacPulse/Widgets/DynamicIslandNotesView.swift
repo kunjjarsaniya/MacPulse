@@ -43,7 +43,7 @@ public struct DynamicIslandNotesView: View {
                         HapticFeedback.playSoft()
                     }
                     .font(MacPulseTypography.captionSemibold)
-                    .foregroundColor(MacPulseColors.appleCyan)
+                    .foregroundColor(Color.white.opacity(0.80))
                     .buttonStyle(.plain)
                     
                     Button("Clear") {
@@ -51,7 +51,7 @@ public struct DynamicIslandNotesView: View {
                         HapticFeedback.playSoft()
                     }
                     .font(MacPulseTypography.caption)
-                    .foregroundColor(MacPulseColors.appleRed)
+                    .foregroundColor(Color.white.opacity(0.45))
                     .buttonStyle(.plain)
                 }
             }

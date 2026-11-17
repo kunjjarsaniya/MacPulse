@@ -11,24 +11,67 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     }
 }
 
-// MARK: - Authentic Dynamic Island Unified Shape (Single Apple Squircle Chassis)
+// MARK: - Authentic Apple Notch & Island Shape (Curved Ear Layout Design)
 
-public struct DynamicIslandUnifiedShape: Shape {
-    public var cornerRadius: CGFloat = 22
-    public var isExpanded: Bool = true
+public struct NotchShape: Shape {
+    public var topCornerRadius: CGFloat
+    public var bottomCornerRadius: CGFloat
     
-    public var animatableData: CGFloat {
-        get { cornerRadius }
-        set { cornerRadius = newValue }
+    public init(topCornerRadius: CGFloat = 8, bottomCornerRadius: CGFloat = 14) {
+        self.topCornerRadius = topCornerRadius
+        self.bottomCornerRadius = bottomCornerRadius
+    }
+    
+    public var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { .init(topCornerRadius, bottomCornerRadius) }
+        set {
+            topCornerRadius = newValue.first
+            bottomCornerRadius = newValue.second
+        }
     }
     
     public func path(in rect: CGRect) -> Path {
-        if !isExpanded {
-            // Compact Mode: Continuous squircle capsule (zero wings, zero horns)
-            return Path(roundedRect: rect, cornerRadius: rect.height / 2.0, style: .continuous)
-        }
-        // Expanded Mode: Pure continuous squircle chassis (flush Apple hardware component)
-        return Path(roundedRect: rect, cornerRadius: cornerRadius, style: .continuous)
+        var path = Path()
+        
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        
+        // Top-left ear: concave curve flowing smoothly down from menu bar into notch
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + topCornerRadius, y: rect.minY + topCornerRadius),
+            control: CGPoint(x: rect.minX + topCornerRadius, y: rect.minY)
+        )
+        
+        // Left vertical edge
+        path.addLine(to: CGPoint(x: rect.minX + topCornerRadius, y: rect.maxY - bottomCornerRadius))
+        
+        // Bottom-left convex rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + topCornerRadius + bottomCornerRadius, y: rect.maxY),
+            control: CGPoint(x: rect.minX + topCornerRadius, y: rect.maxY)
+        )
+        
+        // Bottom horizontal edge
+        path.addLine(to: CGPoint(x: rect.maxX - topCornerRadius - bottomCornerRadius, y: rect.maxY))
+        
+        // Bottom-right convex rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - topCornerRadius, y: rect.maxY - bottomCornerRadius),
+            control: CGPoint(x: rect.maxX - topCornerRadius, y: rect.maxY)
+        )
+        
+        // Right vertical edge
+        path.addLine(to: CGPoint(x: rect.maxX - topCornerRadius, y: rect.minY + topCornerRadius))
+        
+        // Top-right ear: concave curve flowing smoothly out into menu bar
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: rect.maxX - topCornerRadius, y: rect.minY)
+        )
+        
+        // Top horizontal edge back to start
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        
+        return path
     }
 }
 
@@ -188,36 +231,42 @@ public final class DynamicIslandController: ObservableObject {
     
     @objc private func handleTabHome() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .home
             self?.expand()
         }
     }
     @objc private func handleTabShelf() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .shelf
             self?.expand()
         }
     }
     @objc private func handleTabStats() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .stats
             self?.expand()
         }
     }
     @objc private func handleTabTimer() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .timer
             self?.expand()
         }
     }
     @objc private func handleTabClipboard() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .clipboard
             self?.expand()
         }
     }
     @objc private func handleTabNotes() {
         DispatchQueue.main.async { [weak self] in
+            self?.showCameraMirror = false
             self?.activeTab = .notes
             self?.expand()
         }
@@ -350,9 +399,11 @@ public final class DynamicIslandController: ObservableObject {
             panel.hasShadow = false
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             
-            panel.contentView = FirstMouseHostingView(
+            let hosting = FirstMouseHostingView(
                 rootView: HallmarkDynamicIslandRootView()
             )
+            hosting.autoresizingMask = [.width, .height]
+            panel.contentView = hosting
             
             panel.setFrame(NSRect(origin: origin, size: targetSize), display: true)
             self.window = panel
@@ -382,14 +433,14 @@ public final class DynamicIslandController: ObservableObject {
     }
     
     private func getGeometry(expanded: Bool) -> (size: NSSize, origin: CGPoint) {
-        guard let screen = NSScreen.main else {
+        guard let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first else {
             return (compactSize, .zero)
         }
         let targetSize: NSSize
         if expanded {
             targetSize = expandedSize
         } else if activeLiveActivityText != nil {
-            targetSize = NSSize(width: 270, height: 26)
+            targetSize = NSSize(width: 280, height: compactSize.height)
         } else {
             targetSize = compactSize
         }
@@ -430,42 +481,37 @@ public struct HallmarkDynamicIslandRootView: View {
         timer.pomodoroState == .running || timer.countdownState == .running || timer.stopwatchState == .running
     }
     
+    private var currentNotchShape: NotchShape {
+        let topEar = isExpanded ? MacPulseRadius.topEarExpanded : MacPulseRadius.topEarCompact
+        let bottomRadius = isExpanded ? MacPulseRadius.bottomCornerExpanded : MacPulseRadius.bottomCornerCompact
+        return NotchShape(topCornerRadius: topEar, bottomCornerRadius: bottomRadius)
+    }
+    
     public var body: some View {
         ZStack(alignment: .top) {
-            // Unified Obsidian Liquid Glass Chassis (Zero Drop Shadow, Pure Apple Squircle)
-            DynamicIslandUnifiedShape(
-                cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
-                isExpanded: isExpanded
-            )
-            .fill(MacPulseColors.islandBackground.opacity(0.96))
-            .background(
-                VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
-                    .clipShape(
-                        DynamicIslandUnifiedShape(
-                            cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
-                            isExpanded: isExpanded
+            // Unified Apple Curved Notch Chassis (Zero Drop Shadow, Curved Ears)
+            currentNotchShape
+                .fill(MacPulseColors.islandBackground.opacity(0.96))
+                .background(
+                    VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
+                        .clipShape(currentNotchShape)
+                )
+                .overlay(
+                    // Subtle Specular Hairline Rim Light (0.6pt)
+                    currentNotchShape
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(isHovering || isExpanded ? 0.22 : 0.12),
+                                    Color.white.opacity(0.05),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.6
                         )
-                    )
-            )
-            .overlay(
-                // Subtle Specular Hairline Rim Light (0.5pt)
-                DynamicIslandUnifiedShape(
-                    cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
-                    isExpanded: isExpanded
                 )
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(isHovering || isExpanded ? 0.20 : 0.10),
-                            Color.white.opacity(0.04),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.6
-                )
-            )
             
             // Content Switcher
             if isExpanded {
@@ -482,12 +528,7 @@ public struct HallmarkDynamicIslandRootView: View {
                 : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width),
             height: isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height
         )
-        .clipShape(
-            DynamicIslandUnifiedShape(
-                cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
-                isExpanded: isExpanded
-            )
-        )
+        .clipShape(currentNotchShape)
         .animation(MacPulseAnimations.islandSpring, value: isExpanded)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)
         .animation(MacPulseAnimations.snappySpring, value: isHovering)
@@ -523,12 +564,12 @@ public struct HallmarkDynamicIslandRootView: View {
                 HStack(spacing: MacPulseSpacing.sm) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(MacPulseColors.appleGreen)
+                        .foregroundColor(Color.white.opacity(0.90))
                     Text(liveText)
                         .font(MacPulseTypography.footnoteRounded)
                         .foregroundColor(MacPulseColors.textPrimary)
                 }
-                .frame(height: 26)
+                .frame(height: MacPulseDimensions.compactIslandSize.height)
                 .padding(.horizontal, 12)
                 .contentShape(Rectangle())
                 .onTapGesture { expand() }
@@ -541,7 +582,7 @@ public struct HallmarkDynamicIslandRootView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "wifi")
                             .font(.system(size: 9.5, weight: .semibold))
-                            .foregroundColor(MacPulseColors.appleCyan)
+                            .foregroundColor(Color.white.opacity(0.85))
                         
                         let todayTotal = history.todayDownloadBytes + history.todayUploadBytes
                         Text(NetworkUnitFormatter.formatBytes(todayTotal))
@@ -601,15 +642,15 @@ public struct HallmarkDynamicIslandRootView: View {
                             HStack(spacing: 3) {
                                 Image(systemName: "timer")
                                     .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(MacPulseColors.appleGreen)
+                                    .foregroundColor(Color.white.opacity(0.90))
                                 Text(activeTimerFormattedString)
                                     .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                                     .monospacedDigit()
-                                    .foregroundColor(MacPulseColors.appleGreen)
+                                    .foregroundColor(.white)
                             }
                             .padding(.horizontal, 4.5)
                             .padding(.vertical, 1.5)
-                            .background(Capsule().fill(MacPulseColors.appleGreen.opacity(0.16)))
+                            .background(Capsule().fill(Color.white.opacity(0.16)))
                         } else {
                             let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
                             Text("\(Int(temp))°C")
@@ -623,8 +664,8 @@ public struct HallmarkDynamicIslandRootView: View {
                     
                     Spacer(minLength: 2)
                 }
-                .frame(height: 26)
-                .padding(.horizontal, 8)
+                .frame(height: MacPulseDimensions.compactIslandSize.height)
+                .padding(.horizontal, 10)
                 .contentShape(Rectangle())
                 .onTapGesture { expand() }
                 .transition(.opacity)
@@ -682,8 +723,8 @@ public struct HallmarkDynamicIslandRootView: View {
                     icon: controller.showCameraMirror ? "camera.fill" : "web.camera",
                     iconSize: 10,
                     iconWeight: .medium,
-                    foregroundColor: controller.showCameraMirror ? MacPulseColors.appleGreen : MacPulseColors.textSecondary,
-                    backgroundColor: controller.showCameraMirror ? MacPulseColors.appleGreen.opacity(0.20) : Color.white.opacity(0.08),
+                    foregroundColor: controller.showCameraMirror ? .white : MacPulseColors.textSecondary,
+                    backgroundColor: controller.showCameraMirror ? Color.white.opacity(0.20) : Color.white.opacity(0.08),
                     tooltip: "Toggle Camera Mirror"
                 ) {
                     withAnimation(MacPulseAnimations.islandSpring) {
@@ -703,8 +744,8 @@ public struct HallmarkDynamicIslandRootView: View {
                     collapse()
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
+            .padding(.horizontal, 16)
+            .padding(.top, 9)
             
             // Dynamic Body Section (Content Canvas)
             ZStack {
@@ -716,7 +757,7 @@ public struct HallmarkDynamicIslandRootView: View {
                         .transition(.opacity)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.bottom, 10)
         }
     }

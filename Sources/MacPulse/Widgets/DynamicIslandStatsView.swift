@@ -45,7 +45,7 @@ public struct DynamicIslandStatsView: View {
                                     .fill(Color.white.opacity(0.08))
                                     .frame(height: 3)
                                 Capsule()
-                                    .fill(MacPulseColors.appleCyan)
+                                    .fill(Color.white.opacity(0.80))
                                     .frame(width: max(3, geo.size.width * CGFloat(min(sys.cpu.usagePercentage / 100.0, 1.0))), height: 3)
                             }
                         }
@@ -65,7 +65,7 @@ public struct DynamicIslandStatsView: View {
                         Text("\(Int(sys.ram.usagePercentage))% Used")
                             .font(MacPulseTypography.metric)
                             .monospacedDigit()
-                            .foregroundColor(MacPulseColors.applePurple)
+                            .foregroundColor(MacPulseColors.textPrimary)
                         
                         // Mini Live Progress Bar
                         GeometryReader { geo in
@@ -74,7 +74,7 @@ public struct DynamicIslandStatsView: View {
                                     .fill(Color.white.opacity(0.08))
                                     .frame(height: 3)
                                 Capsule()
-                                    .fill(MacPulseColors.applePurple)
+                                    .fill(Color.white.opacity(0.55))
                                     .frame(width: max(3, geo.size.width * CGFloat(min(sys.ram.usagePercentage / 100.0, 1.0))), height: 3)
                             }
                         }
@@ -99,7 +99,7 @@ public struct DynamicIslandStatsView: View {
                     HStack(spacing: MacPulseSpacing.xs) {
                         Image(systemName: "thermometer.medium")
                             .font(.system(size: 9))
-                            .foregroundColor(MacPulseColors.appleOrange)
+                            .foregroundColor(MacPulseColors.textSecondary)
                         Text("\(Int(temp))°C Normal")
                             .font(MacPulseTypography.captionSemibold)
                             .foregroundColor(MacPulseColors.textPrimary)
@@ -108,7 +108,7 @@ public struct DynamicIslandStatsView: View {
                     HStack(spacing: MacPulseSpacing.xs) {
                         Image(systemName: sys.battery.isCharging ? "bolt.fill" : "battery.100")
                             .font(.system(size: 9))
-                            .foregroundColor(sys.battery.isCharging ? MacPulseColors.appleGreen : MacPulseColors.textSecondary)
+                            .foregroundColor(MacPulseColors.textSecondary)
                         Text("\(sys.battery.percentage)% • \(sys.battery.isPluggedIn ? "Power Adapter" : "Battery")")
                             .font(MacPulseTypography.caption2)
                             .foregroundColor(MacPulseColors.textSecondary)
@@ -187,7 +187,7 @@ public struct DynamicIslandStatsView: View {
             
             Text(String(format: "%.0f%%", proc.cpuPercentage))
                 .font(MacPulseTypography.metricMono)
-                .foregroundColor(MacPulseColors.appleCyan)
+                .foregroundColor(MacPulseColors.textPrimary)
             
             Text(proc.memoryString)
                 .font(.system(size: 8, weight: .medium, design: .monospaced))

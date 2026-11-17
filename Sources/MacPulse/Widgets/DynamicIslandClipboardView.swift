@@ -61,7 +61,7 @@ public struct DynamicIslandClipboardView: View {
             } label: {
                 Image(systemName: "doc.on.doc")
                     .font(.system(size: 9))
-                    .foregroundColor(MacPulseColors.appleCyan)
+                    .foregroundColor(Color.white.opacity(0.80))
             }
             .buttonStyle(.plain)
             
@@ -92,7 +92,7 @@ public struct DynamicIslandClipboardView: View {
                 HapticFeedback.playSoft()
             }
             .font(MacPulseTypography.caption)
-            .foregroundColor(MacPulseColors.appleRed)
+            .foregroundColor(Color.white.opacity(0.45))
             .buttonStyle(.plain)
         }
     }
