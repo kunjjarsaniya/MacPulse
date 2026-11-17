@@ -2,10 +2,13 @@ import Foundation
 import UserNotifications
 import AppKit
 
-public final class NotificationManager {
+public final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     public static let shared = NotificationManager()
     
-    private init() {
+    private override init() {
+        super.init()
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
         requestAuthorization()
     }
     
@@ -17,15 +20,34 @@ public final class NotificationManager {
         }
     }
     
-    public func playAlertSound(name: String = "Glass") {
-        if let sound = NSSound(named: NSSound.Name(name)) {
-            sound.play()
+    // Ensure notifications appear as banners even when app is active
+    public func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if #available(macOS 11.0, *) {
+            completionHandler([.banner, .sound, .badge, .list])
         } else {
-            NSSound.beep()
+            completionHandler([.alert, .sound, .badge])
+        }
+    }
+    
+    public func playAlertSound(name: String = "Glass") {
+        DispatchQueue.main.async {
+            if let sound = NSSound(named: NSSound.Name(name)) {
+                sound.play()
+            } else if let fallback = NSSound(named: NSSound.Name("Ping")) {
+                fallback.play()
+            } else {
+                NSSound.beep()
+            }
         }
     }
     
     public func sendNotification(title: String, subtitle: String? = nil, body: String, soundName: String = "Glass") {
+        playAlertSound(name: soundName)
+        
         let content = UNMutableNotificationContent()
         content.title = title
         if let subtitle = subtitle {
@@ -40,9 +62,9 @@ public final class NotificationManager {
             trigger: nil // deliver immediately
         )
         
-        UNUserNotificationCenter.current().add(request) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.playAlertSound(name: soundName)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Failed to schedule notification: \(error.localizedDescription)")
             }
         }
     }

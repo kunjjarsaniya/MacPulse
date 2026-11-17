@@ -125,6 +125,33 @@ public enum DynamicIslandHUDType: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
 }
 
+public struct DynamicIslandAlertItem: Identifiable, Equatable {
+    public let id = UUID()
+    public let icon: String
+    public let title: String
+    public let subtitle: String
+    public let actionTitle: String?
+    public let soundName: String
+    
+    public init(
+        icon: String = "timer",
+        title: String,
+        subtitle: String,
+        actionTitle: String? = nil,
+        soundName: String = "Glass"
+    ) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.actionTitle = actionTitle
+        self.soundName = soundName
+    }
+    
+    public static func == (lhs: DynamicIslandAlertItem, rhs: DynamicIslandAlertItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 @MainActor
 public final class DynamicIslandController: ObservableObject {
     public static let shared = DynamicIslandController()
@@ -139,6 +166,10 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var activeLiveActivityText: String? = nil
     @Published public var activeHUD: DynamicIslandHUDType? = nil
     @Published public var showCameraMirror: Bool = false
+    @Published public var activeAlert: DynamicIslandAlertItem? = nil
+    
+    private var alertDismissTimer: DispatchWorkItem?
+    private var alertActionHandler: (() -> Void)? = nil
     
     // Gesture-Based Navigation State
     private var accumulatedDeltaX: CGFloat = 0
@@ -365,6 +396,7 @@ public final class DynamicIslandController: ObservableObject {
         // Volume & Brightness HUD notifications
         center.addObserver(self, selector: #selector(handleToggleVolumeHUD), name: NSNotification.Name("com.macpulse.toggleVolumeHUD"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleToggleBrightnessHUD), name: NSNotification.Name("com.macpulse.toggleBrightnessHUD"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleTestAlert), name: NSNotification.Name("com.macpulse.testAlert"), object: nil, suspensionBehavior: .deliverImmediately)
         
         // Backward-compatible notification handlers
         center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.live"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -435,6 +467,19 @@ public final class DynamicIslandController: ObservableObject {
     
     @objc private func handleToggleBrightnessHUD() {
         toggleHUD(.brightness)
+    }
+    
+    @objc private func handleTestAlert() {
+        triggerAlert(
+            icon: "timer",
+            title: "Timer Completed! ⏰",
+            subtitle: "25m countdown has finished.",
+            actionTitle: "Repeat",
+            soundName: "Glass"
+        ) {
+            TimerService.shared.resetCountdown()
+            TimerService.shared.startCountdown()
+        }
     }
     
     @objc private func handleSwitchTab(_ notification: Notification) {
@@ -518,6 +563,70 @@ public final class DynamicIslandController: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.activeHUD = nil
+            self.updateWindowSize(expanded: self.isExpanded)
+        }
+    }
+    
+    // MARK: - Dynamic Island Alert Presentation System
+    
+    public func triggerAlert(
+        icon: String = "timer",
+        title: String,
+        subtitle: String,
+        actionTitle: String? = nil,
+        soundName: String = "Glass",
+        duration: TimeInterval = 8.0,
+        onAction: (() -> Void)? = nil
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.alertDismissTimer?.cancel()
+            self.alertActionHandler = onAction
+            
+            let alert = DynamicIslandAlertItem(
+                icon: icon,
+                title: title,
+                subtitle: subtitle,
+                actionTitle: actionTitle,
+                soundName: soundName
+            )
+            
+            withAnimation(MacPulseAnimations.islandSpring) {
+                self.activeAlert = alert
+            }
+            NotificationManager.shared.playAlertSound(name: soundName)
+            HapticFeedback.playSoft()
+            
+            // Show window if not visible
+            self.show()
+            self.updateWindowSize(expanded: self.isExpanded)
+            
+            // Auto-dismiss work item
+            let work = DispatchWorkItem { [weak self] in
+                self?.dismissAlert()
+            }
+            self.alertDismissTimer = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+        }
+    }
+    
+    public func handleAlertAction() {
+        DispatchQueue.main.async { [weak self] in
+            let action = self?.alertActionHandler
+            self?.dismissAlert()
+            action?()
+        }
+    }
+    
+    public func dismissAlert() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.alertDismissTimer?.cancel()
+            self.alertDismissTimer = nil
+            self.alertActionHandler = nil
+            withAnimation(MacPulseAnimations.islandSpring) {
+                self.activeAlert = nil
+            }
             self.updateWindowSize(expanded: self.isExpanded)
         }
     }
@@ -617,7 +726,9 @@ public final class DynamicIslandController: ObservableObject {
             return (compactSize, .zero)
         }
         let targetSize: NSSize
-        if activeHUD != nil {
+        if activeAlert != nil {
+            targetSize = MacPulseDimensions.alertIslandSize
+        } else if activeHUD != nil {
             targetSize = MacPulseDimensions.hudIslandSize
         } else if expanded {
             targetSize = expandedSize
@@ -666,7 +777,10 @@ public struct HallmarkDynamicIslandRootView: View {
     private var currentNotchShape: NotchShape {
         let topEar: CGFloat
         let bottomRadius: CGFloat
-        if controller.activeHUD != nil {
+        if controller.activeAlert != nil {
+            topEar = MacPulseRadius.topEarHUD
+            bottomRadius = MacPulseRadius.bottomCornerHUD
+        } else if controller.activeHUD != nil {
             topEar = MacPulseRadius.topEarHUD
             bottomRadius = MacPulseRadius.bottomCornerHUD
         } else if isExpanded {
@@ -694,7 +808,7 @@ public struct HallmarkDynamicIslandRootView: View {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(isHovering || isExpanded || controller.activeHUD != nil ? 0.22 : 0.12),
+                                    Color.white.opacity(isHovering || isExpanded || controller.activeHUD != nil || controller.activeAlert != nil ? 0.22 : 0.12),
                                     Color.white.opacity(0.05),
                                     Color.clear
                                 ],
@@ -706,7 +820,10 @@ public struct HallmarkDynamicIslandRootView: View {
                 )
             
             // Content Switcher
-            if let hud = controller.activeHUD {
+            if let alert = controller.activeAlert {
+                DynamicIslandAlertView(alert: alert)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            } else if let hud = controller.activeHUD {
                 DynamicIslandHUDControlView(hudType: hud)
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else if isExpanded {
@@ -718,16 +835,21 @@ public struct HallmarkDynamicIslandRootView: View {
             }
         }
         .frame(
-            width: controller.activeHUD != nil
-                ? MacPulseDimensions.hudIslandSize.width
-                : (isExpanded
-                    ? MacPulseDimensions.expandedIslandSize.width
-                    : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width)),
-            height: controller.activeHUD != nil
-                ? MacPulseDimensions.hudIslandSize.height
-                : (isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height)
+            width: controller.activeAlert != nil
+                ? MacPulseDimensions.alertIslandSize.width
+                : (controller.activeHUD != nil
+                    ? MacPulseDimensions.hudIslandSize.width
+                    : (isExpanded
+                        ? MacPulseDimensions.expandedIslandSize.width
+                        : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width))),
+            height: controller.activeAlert != nil
+                ? MacPulseDimensions.alertIslandSize.height
+                : (controller.activeHUD != nil
+                    ? MacPulseDimensions.hudIslandSize.height
+                    : (isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height))
         )
         .clipShape(currentNotchShape)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeAlert)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeHUD)
         .animation(MacPulseAnimations.islandSpring, value: isExpanded)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)

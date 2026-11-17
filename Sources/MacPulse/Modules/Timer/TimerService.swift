@@ -110,11 +110,25 @@ public final class TimerService: ObservableObject {
                 self.countdownTimer?.invalidate()
                 self.countdownTimer = nil
                 
+                let mins = max(1, Int(round(self.countdownDuration / 60)))
                 NotificationManager.shared.sendNotification(
-                    title: "Timer Completed",
-                    body: "Your countdown timer has finished!",
+                    title: "Timer Completed! ⏰",
+                    body: "\(mins)m countdown timer has finished.",
                     soundName: "Glass"
                 )
+                
+                Task { @MainActor in
+                    DynamicIslandController.shared.triggerAlert(
+                        icon: "timer",
+                        title: "Timer Completed! ⏰",
+                        subtitle: "\(mins)m countdown has finished.",
+                        actionTitle: "Repeat",
+                        soundName: "Glass"
+                    ) {
+                        TimerService.shared.resetCountdown()
+                        TimerService.shared.startCountdown()
+                    }
+                }
             } else {
                 self.countdownRemaining = remaining
             }
@@ -194,17 +208,42 @@ public final class TimerService: ObservableObject {
     private func handlePomodoroCompletion() {
         if pomodoroMode == .focus {
             completedPomodoros += 1
+            let breakMinutes = (completedPomodoros % 4 == 0) ? 15 : 5
             NotificationManager.shared.sendNotification(
                 title: "Focus Session Finished! 🍅",
-                body: "Great job! Time for a well-deserved break.",
+                body: "Great job! Time for a \(breakMinutes)m break.",
                 soundName: "Glass"
             )
+            Task { @MainActor in
+                DynamicIslandController.shared.triggerAlert(
+                    icon: "brain.head.profile",
+                    title: "Focus Session Finished! 🍅",
+                    subtitle: "Great job! Time for a \(breakMinutes)m break.",
+                    actionTitle: "Start Break",
+                    soundName: "Glass"
+                ) {
+                    TimerService.shared.advancePomodoroMode()
+                    TimerService.shared.startPomodoro()
+                }
+            }
         } else {
             NotificationManager.shared.sendNotification(
                 title: "Break Time Over! ⚡️",
                 body: "Ready to focus on your next session?",
                 soundName: "Glass"
             )
+            Task { @MainActor in
+                DynamicIslandController.shared.triggerAlert(
+                    icon: "bolt.fill",
+                    title: "Break Time Over! ⚡️",
+                    subtitle: "Ready to focus on your next session?",
+                    actionTitle: "Focus Now",
+                    soundName: "Glass"
+                ) {
+                    TimerService.shared.advancePomodoroMode()
+                    TimerService.shared.startPomodoro()
+                }
+            }
         }
         
         if autoAdvancePomodoro {

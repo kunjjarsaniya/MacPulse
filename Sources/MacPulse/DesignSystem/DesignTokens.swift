@@ -155,6 +155,7 @@ public enum MacPulseDimensions {
     public static let compactIslandSize = NSSize(width: 258, height: 28)
     public static let compactLiveActivitySize = NSSize(width: 280, height: 28)
     public static let hudIslandSize = NSSize(width: 340, height: 78)
+    public static let alertIslandSize = NSSize(width: 360, height: 72)
     public static let expandedIslandSize = NSSize(width: 560, height: 175)
     
     public static let contentHeight: CGFloat = 118
