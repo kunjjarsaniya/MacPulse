@@ -32,5 +32,9 @@
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 MacPulse. All rights reserved.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>MacPulse uses the camera for the Dynamic Island Mirror feature.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>MacPulse uses AppleScript to control music playback.</string>
 </dict>
 </plist>
