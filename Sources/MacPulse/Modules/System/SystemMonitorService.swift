@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Combine
 import IOKit.ps
 import MachO
@@ -11,6 +12,7 @@ public final class SystemMonitorService: ObservableObject {
     @Published public private(set) var disk = DiskSnapshot()
     @Published public private(set) var battery = BatterySnapshot()
     @Published public private(set) var uptime = UptimeSnapshot()
+    @Published public private(set) var topProcesses: [TopProcessItem] = []
     
     @Published public private(set) var cpuHistory: [Double] = Array(repeating: 0.0, count: 30)
     @Published public private(set) var ramHistory: [Double] = Array(repeating: 0.0, count: 30)
@@ -18,8 +20,9 @@ public final class SystemMonitorService: ObservableObject {
     private var timer: DispatchSourceTimer?
     private let queue = DispatchQueue(label: "com.macpulse.system.poll", qos: .userInitiated)
     
-    // CPU tick history
+    // Previous state tracking
     private var previousCPULoad: host_cpu_load_info?
+    private var previousIsPluggedIn: Bool? = nil
     
     private init() {
         cpu.coreCount = ProcessInfo.processInfo.processorCount
@@ -71,6 +74,69 @@ public final class SystemMonitorService: ObservableObject {
             rHistory.removeFirst()
             rHistory.append(newRAM.usagePercentage)
             self.ramHistory = rHistory
+            
+            // Check for charging/plugged-in transition
+            if let prev = self.previousIsPluggedIn, prev != newBattery.isPluggedIn {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("com.macpulse.powerChanged"),
+                    object: nil,
+                    userInfo: ["isPluggedIn": newBattery.isPluggedIn, "percentage": newBattery.percentage]
+                )
+            }
+            self.previousIsPluggedIn = newBattery.isPluggedIn
+        }
+    }
+    
+    // MARK: - Top Resource Consumers Scanner via /bin/ps
+    public func fetchTopProcesses(limit: Int = 3) {
+        DispatchQueue.global(qos: .utility).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/ps")
+            task.arguments = ["-Aceo", "pid,pcpu,pmem,comm", "-r"]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = Pipe()
+            
+            do {
+                try task.run()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                task.waitUntilExit()
+                
+                guard let str = String(data: data, encoding: .utf8) else { return }
+                var items: [TopProcessItem] = []
+                let lines = str.components(separatedBy: "\n")
+                let totalRAM = Double(ProcessInfo.processInfo.physicalMemory)
+                
+                for line in lines.dropFirst() {
+                    let parts = line.split(separator: " ", omittingEmptySubsequences: true)
+                    guard parts.count >= 4,
+                          let pid = Int32(parts[0]),
+                          let cpu = Double(parts[1]),
+                          let pmem = Double(parts[2]) else { continue }
+                    
+                    let rawName = parts[3...].joined(separator: " ")
+                    let app = NSRunningApplication(processIdentifier: pid)
+                    let displayName = app?.localizedName ?? (rawName as NSString).lastPathComponent
+                    let icon = app?.icon
+                    let memBytes = UInt64((pmem / 100.0) * totalRAM)
+                    
+                    items.append(TopProcessItem(
+                        id: pid,
+                        name: displayName,
+                        cpuPercentage: cpu,
+                        memoryBytes: memBytes,
+                        icon: icon
+                    ))
+                    if items.count >= limit { break }
+                }
+                
+                DispatchQueue.main.async {
+                    self.topProcesses = items
+                }
+            } catch {
+                // Non-fatal
+            }
         }
     }
     

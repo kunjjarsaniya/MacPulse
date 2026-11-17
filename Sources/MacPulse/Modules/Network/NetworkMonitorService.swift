@@ -2,6 +2,7 @@ import Foundation
 import Network
 import AppKit
 import Combine
+import CoreWLAN
 
 public final class NetworkMonitorService: ObservableObject {
     public static let shared = NetworkMonitorService()
@@ -15,6 +16,7 @@ public final class NetworkMonitorService: ObservableObject {
     @Published public private(set) var activeInterfaceName: String = "en0"
     @Published public private(set) var isConnected: Bool = true
     @Published public private(set) var connectionType: String = "Wi-Fi"
+    @Published public private(set) var wifiSSID: String? = nil
     @Published public private(set) var availableInterfaces: [NetworkInterfaceInfo] = []
     
     @Published public var selectedInterfaceOption: String = "auto" { // "auto", "all", or interface name (e.g. "en0")
@@ -163,6 +165,16 @@ public final class NetworkMonitorService: ObservableObject {
             } else if self.selectedInterfaceOption != "all" {
                 self.activeInterfaceName = self.selectedInterfaceOption
             }
+            self.updateWiFiSSID()
+        }
+    }
+    
+    // MARK: - CoreWLAN SSID Resolution
+    public func updateWiFiSSID() {
+        if let iface = CWWiFiClient.shared().interface(), let ssid = iface.ssid(), !ssid.isEmpty {
+            self.wifiSSID = ssid
+        } else {
+            self.wifiSSID = nil
         }
     }
     

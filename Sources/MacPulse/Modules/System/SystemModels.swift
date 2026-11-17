@@ -1,4 +1,31 @@
 import Foundation
+import AppKit
+
+// MARK: - Top Process Consumer Model
+
+public struct TopProcessItem: Identifiable, Hashable {
+    public let id: Int32
+    public let name: String
+    public let cpuPercentage: Double
+    public let memoryBytes: UInt64
+    public let icon: NSImage?
+    
+    public init(id: Int32, name: String, cpuPercentage: Double, memoryBytes: UInt64, icon: NSImage? = nil) {
+        self.id = id
+        self.name = name
+        self.cpuPercentage = cpuPercentage
+        self.memoryBytes = memoryBytes
+        self.icon = icon
+    }
+    
+    public var memoryString: String {
+        let mb = Double(memoryBytes) / (1024 * 1024)
+        if mb >= 1024 {
+            return String(format: "%.1f GB", mb / 1024)
+        }
+        return String(format: "%.0f MB", mb)
+    }
+}
 
 // MARK: - System Telemetry Models
 
