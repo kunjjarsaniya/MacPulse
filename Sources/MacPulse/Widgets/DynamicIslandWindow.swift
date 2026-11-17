@@ -378,8 +378,7 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.selectTab(.stats)
-            self?.expand()
+            self?.expand(to: .stats)
         }
     }
     @objc private func handleTabHome() {
@@ -387,8 +386,7 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.selectTab(.home)
-            self?.expand()
+            self?.expand(to: .home)
         }
     }
     @objc private func handleTabTimer() {
@@ -396,8 +394,7 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.activeTab = .timer
-            self?.expand()
+            self?.expand(to: .timer)
         }
     }
     @objc private func handleTabClipboard() {
@@ -405,8 +402,7 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.activeTab = .clipboard
-            self?.expand()
+            self?.expand(to: .clipboard)
         }
     }
     @objc private func handleTabNotes() {
@@ -414,8 +410,7 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.activeTab = .notes
-            self?.expand()
+            self?.expand(to: .notes)
         }
     }
     
@@ -467,9 +462,11 @@ public final class DynamicIslandController: ObservableObject {
         }
     }
     
-    public func expand() {
+    public func expand(to tab: MacPulseShelfTab = .home) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            self.activeTab = tab
+            self.navigationDirection = .forward
             self.isExpanded = true
             self.updateWindowSize(expanded: true)
             self.startMonitoringClickOutside()
@@ -480,6 +477,8 @@ public final class DynamicIslandController: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.isExpanded = false
+            self.activeTab = .home
+            self.navigationDirection = .forward
             self.activeHUD = nil
             self.showCameraMirror = false
             CameraMirrorManager.shared.stop()
