@@ -1,11 +1,15 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Dynamic Island Home View (Now Playing & Quick Actions)
+// MARK: - Dynamic Island Home View (Apple & NotchNook Minimalist Monochromatic Styling)
 
 public struct DynamicIslandHomeView: View {
     @ObservedObject private var media = MediaManager.shared
     @ObservedObject private var controller = DynamicIslandController.shared
+    
+    @State private var isQuitHovered: Bool = false
+    @State private var isTerminalHovered: Bool = false
+    @State private var isMirrorHovered: Bool = false
     
     public init() {}
     
@@ -23,159 +27,43 @@ public struct DynamicIslandHomeView: View {
     }
     
     public var body: some View {
-        HStack(spacing: 12) {
-            mediaPlayerCard
-                .frame(maxWidth: .infinity)
+        HStack(spacing: 0) {
+            // 1. Left: Seamless Media Player Section
+            mediaPlayerSection
+                .frame(maxWidth: .infinity, alignment: .leading)
             
-            actionStack
-                .frame(width: 196)
+            // 2. Center-Left: Subtle Hairline Divider
+            Rectangle()
+                .fill(Color.white.opacity(0.10))
+                .frame(width: 1, height: 72)
+                .padding(.horizontal, 14)
+            
+            // 3. Center-Right: Two Stacked Capsule Action Buttons
+            middleActionsSection
+                .frame(width: 144)
+            
+            Spacer(minLength: 12)
+            
+            // 4. Right: Large Circular Mirror Button
+            circularMirrorButton
+                .frame(width: 74)
         }
+        .padding(.horizontal, 16)
         .frame(height: MacPulseDimensions.contentHeight)
     }
     
-    // MARK: - Quick Action Buttons Stack (Monochromatic Apple Styling)
-    private var actionStack: some View {
-        VStack(spacing: 10) {
-            // Row 1: Quit All Apps (Full Width)
-            quickActionCard(
-                title: "Quit All Apps",
-                subtitle: "Quit background apps",
-                icon: "sparkles"
-            ) {
-                media.quitAllApps()
-                controller.triggerToast(icon: "sparkles", title: "Apps Closed", subtitle: "All inactive apps terminated")
-            }
-            
-            // Row 2: Split Action Row (Terminal & Camera Mirror - Pure Icon Style)
-            HStack(spacing: 8) {
-                iconActionTile(
-                    icon: "apple.terminal",
-                    isActive: false,
-                    tooltip: "Terminal"
-                ) {
-                    media.openTerminal()
-                    controller.triggerToast(icon: "apple.terminal", title: "Terminal", subtitle: "Terminal launched")
-                }
-                
-                iconActionTile(
-                    icon: controller.showCameraMirror ? "web.camera.fill" : "web.camera",
-                    isActive: controller.showCameraMirror,
-                    tooltip: "Camera Mirror"
-                ) {
-                    withAnimation(MacPulseAnimations.islandSpring) {
-                        controller.toggleCameraMirror()
-                    }
-                }
-            }
-            .frame(height: 52)
-        }
-        .frame(height: MacPulseDimensions.contentHeight)
-    }
-    
-    private func iconActionTile(
-        icon: String,
-        isActive: Bool = false,
-        tooltip: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button {
-            HapticFeedback.playSoft()
-            action()
-        } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                    .fill(isActive ? Color.white.opacity(0.18) : MacPulseColors.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                            .stroke(isActive ? Color.white.opacity(0.35) : MacPulseColors.hairline, lineWidth: 0.6)
-                    )
-                
-                Image(systemName: icon)
-                    .font(.system(size: 17.5, weight: .semibold))
-                    .foregroundColor(isActive ? .white : Color.white.opacity(0.85))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .buttonStyle(.plain)
-        .help(tooltip)
-    }
-    
-    private func quickActionCard(
-        title: String,
-        subtitle: String,
-        icon: String,
-        isExternal: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button {
-            HapticFeedback.playSoft()
-            action()
-        } label: {
-            HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(.system(size: 8.5, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.45))
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                if isExternal {
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 8.5, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.35))
-                }
-            }
-            .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                    .fill(MacPulseColors.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
-                            .stroke(MacPulseColors.hairline, lineWidth: 0.6)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Media Player Card (Matching Apple Dynamic Island Reference)
-    private var mediaPlayerCard: some View {
-        IslandCard(
-            cornerRadius: MacPulseRadius.media,
-            fillColor: MacPulseColors.cardBackground,
-            strokeColor: MacPulseColors.hairline
-        ) {
-            HStack(spacing: 16) {
-                albumArtView
-                trackDetailsAndControlsView
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(height: MacPulseDimensions.contentHeight)
+    // MARK: - 1. Media Player Section (No Nested Box, Seamless Black)
+    private var mediaPlayerSection: some View {
+        HStack(spacing: 14) {
+            albumArtView
+            trackDetailsAndControlsView
         }
     }
     
-    // MARK: - Album Artwork with Live Playing Glow & App Source Badge
+    // MARK: - Album Artwork with App Badge & Live Glow Effect
     private var albumArtView: some View {
         let isPlaying = media.currentTrack.isPlaying
-        let artSize: CGFloat = 82
+        let artSize: CGFloat = 80
         
         return ZStack(alignment: .bottomTrailing) {
             // Subtle ambient playing glow
@@ -186,7 +74,7 @@ public struct DynamicIslandHomeView: View {
                     .blur(radius: 6)
             }
             
-            // Artwork image or minimal fallback squircle
+            // High-Res Artwork or Minimal Squircle Placeholder
             Group {
                 if let art = media.artworkImage {
                     Image(nsImage: art)
@@ -219,7 +107,7 @@ public struct DynamicIslandHomeView: View {
             .scaleEffect(isPlaying ? 1.0 : 0.94)
             .animation(.spring(response: 0.32, dampingFraction: 0.74), value: isPlaying)
             
-            // App Source Badge (Spotify Green Squircle / Apple Music Red Squircle with cutout notch)
+            // App Source Badge (Spotify Green / Apple Music Red with Cutout Notch)
             if media.hasMedia && !media.currentTrack.title.isEmpty {
                 if media.currentTrack.playerSource == "Spotify" {
                     SpotifyBadgeView(size: 21)
@@ -258,7 +146,7 @@ public struct DynamicIslandHomeView: View {
             
             // Bottom Row: Monochromatic Playback Controls & Live Equalizer
             if media.hasMedia && !media.currentTrack.title.isEmpty {
-                HStack(spacing: 16) {
+                HStack(spacing: 15) {
                     // Previous Track Button
                     Button {
                         media.previousTrack()
@@ -267,7 +155,7 @@ public struct DynamicIslandHomeView: View {
                         Image(systemName: "backward.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.85))
-                            .frame(width: 22, height: 22)
+                            .frame(width: 20, height: 20)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -280,7 +168,7 @@ public struct DynamicIslandHomeView: View {
                         Image(systemName: media.currentTrack.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 24, height: 24)
+                            .frame(width: 22, height: 22)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -293,7 +181,7 @@ public struct DynamicIslandHomeView: View {
                         Image(systemName: "forward.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.85))
-                            .frame(width: 22, height: 22)
+                            .frame(width: 20, height: 20)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -377,6 +265,117 @@ public struct DynamicIslandHomeView: View {
             return media.currentTrack.artist
         }
         return "MacPulse Audio"
+    }
+    
+    // MARK: - 3. Center Section: Two Stacked Capsule Buttons (Quit All Apps & Terminal)
+    private var middleActionsSection: some View {
+        VStack(spacing: 10) {
+            // Row 1: Quit All Apps Capsule
+            Button {
+                HapticFeedback.playSoft()
+                media.quitAllApps()
+                controller.triggerToast(icon: "sparkles", title: "Apps Closed", subtitle: "All inactive apps terminated")
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color(hex: "#FFD700"))
+                    
+                    Text("Quit All Apps")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(
+                    Capsule()
+                        .fill(isQuitHovered ? Color.white.opacity(0.16) : Color.white.opacity(0.10))
+                        .overlay(
+                            Capsule()
+                                .stroke(isQuitHovered ? Color.white.opacity(0.24) : Color.white.opacity(0.12), lineWidth: 0.6)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { isQuitHovered = $0 }
+            
+            // Row 2: Terminal Capsule
+            Button {
+                HapticFeedback.playSoft()
+                media.openTerminal()
+                controller.triggerToast(icon: "apple.terminal", title: "Terminal", subtitle: "Terminal launched")
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "apple.terminal")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Text("Terminal")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(
+                    Capsule()
+                        .fill(isTerminalHovered ? Color.white.opacity(0.16) : Color.white.opacity(0.10))
+                        .overlay(
+                            Capsule()
+                                .stroke(isTerminalHovered ? Color.white.opacity(0.24) : Color.white.opacity(0.12), lineWidth: 0.6)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { isTerminalHovered = $0 }
+        }
+    }
+    
+    // MARK: - 4. Right Section: Large Circular Mirror Button (Camera + Mirror Label)
+    private var circularMirrorButton: some View {
+        Button {
+            HapticFeedback.playSoft()
+            withAnimation(MacPulseAnimations.islandSpring) {
+                controller.toggleCameraMirror()
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(
+                        controller.showCameraMirror
+                            ? Color.white.opacity(0.22)
+                            : (isMirrorHovered ? Color.white.opacity(0.15) : Color.white.opacity(0.10))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                controller.showCameraMirror
+                                    ? Color.white.opacity(0.40)
+                                    : (isMirrorHovered ? Color.white.opacity(0.24) : Color.white.opacity(0.12)),
+                                lineWidth: controller.showCameraMirror ? 1.0 : 0.6
+                            )
+                    )
+                
+                VStack(spacing: 4) {
+                    Image(systemName: controller.showCameraMirror ? "web.camera.fill" : "web.camera")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Text("Mirror")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(Color.white.opacity(0.85))
+                }
+            }
+            .frame(width: 72, height: 72)
+        }
+        .buttonStyle(.plain)
+        .onHover { isMirrorHovered = $0 }
+        .help("Toggle Camera Mirror")
     }
 }
 
