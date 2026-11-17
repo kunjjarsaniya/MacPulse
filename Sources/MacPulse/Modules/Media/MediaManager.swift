@@ -239,8 +239,8 @@ public final class MediaManager: ObservableObject {
                 guard let highResUrl = URL(string: highRes) else { return }
                 
                 let (imgData, _) = try await URLSession.shared.data(from: highResUrl)
-                if let image = NSImage(data: imgData) {
-                    await MainActor.run { [weak self] in
+                await MainActor.run { [weak self] in
+                    if let image = NSImage(data: imgData) {
                         self?.artworkCache[cacheKey] = image
                         if self?.currentTrack.title == track.title {
                             self?.artworkImage = image

@@ -1,19 +1,14 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Dynamic Island Timer View (Focus, Countdown & Stopwatch)
+
 public struct DynamicIslandTimerView: View {
     @ObservedObject private var timer = TimerService.shared
     @ObservedObject private var controller = DynamicIslandController.shared
     @State private var selectedPresetMinutes: Int = 25
     
     public init() {}
-    
-    private func playSoftHaptic() {
-        if let sound = NSSound(named: "Tink") {
-            sound.volume = 0.2
-            sound.play()
-        }
-    }
     
     private var isTimerCurrentlyRunning: Bool {
         switch timer.activeTab {
@@ -93,14 +88,15 @@ public struct DynamicIslandTimerView: View {
     }
     
     public var body: some View {
-        HStack(spacing: 12) {
-            modeSelectorView
-            counterDisplayView
-            actionControlsView
+        IslandCard(cornerRadius: MacPulseRadius.shelf) {
+            HStack(spacing: MacPulseSpacing.xl) {
+                modeSelectorView
+                counterDisplayView
+                actionControlsView
+            }
+            .padding(MacPulseSpacing.lg)
+            .frame(height: MacPulseDimensions.contentHeight)
         }
-        .padding(10)
-        .frame(height: 118)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
     }
     
     private var modeSelectorView: some View {
@@ -108,20 +104,20 @@ public struct DynamicIslandTimerView: View {
             ForEach(TimerTab.allCases, id: \.self) { tab in
                 Button {
                     timer.activeTab = tab
-                    playSoftHaptic()
+                    HapticFeedback.playSoft()
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: tab.icon)
                         Text(tab.rawValue)
                     }
-                    .font(.system(size: 9.5, weight: .semibold))
-                    .foregroundColor(timer.activeTab == tab ? Color(hex: "#38BDF8") : Color.white.opacity(0.55))
+                    .font(MacPulseTypography.footnoteSemibold)
+                    .foregroundColor(timer.activeTab == tab ? MacPulseColors.appleCyan : MacPulseColors.textSecondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(timer.activeTab == tab ? Color(hex: "#38BDF8").opacity(0.15) : Color.clear)
+                        RoundedRectangle(cornerRadius: MacPulseRadius.sm, style: .continuous)
+                            .fill(timer.activeTab == tab ? MacPulseColors.appleCyan.opacity(0.15) : Color.clear)
                     )
                 }
                 .buttonStyle(.plain)
@@ -131,12 +127,12 @@ public struct DynamicIslandTimerView: View {
     }
     
     private var counterDisplayView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: MacPulseSpacing.xs) {
             Text(currentTimerDisplayTime)
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
+                .font(MacPulseTypography.timerDisplay)
+                .foregroundColor(MacPulseColors.textPrimary)
             
-            HStack(spacing: 4) {
+            HStack(spacing: MacPulseSpacing.xs) {
                 quickPresetButton("5m", 5)
                 quickPresetButton("15m", 15)
                 quickPresetButton("25m", 25)
@@ -147,44 +143,49 @@ public struct DynamicIslandTimerView: View {
     }
     
     private var actionControlsView: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: MacPulseSpacing.sm) {
             Button {
                 toggleTimerAction()
-                playSoftHaptic()
+                HapticFeedback.playSoft()
             } label: {
                 Text(isTimerCurrentlyRunning ? "Pause" : "Start")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(MacPulseTypography.subheadline)
                     .foregroundColor(.black)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, MacPulseSpacing.gutter)
                     .padding(.vertical, 5)
-                    .background(Capsule().fill(isTimerCurrentlyRunning ? Color(hex: "#FFD60A") : Color(hex: "#30D158")))
+                    .background(
+                        Capsule().fill(
+                            isTimerCurrentlyRunning ? MacPulseColors.appleYellow : MacPulseColors.appleGreen
+                        )
+                    )
             }
             .buttonStyle(.plain)
             
             Button("Reset") {
                 resetTimerAction()
-                playSoftHaptic()
+                HapticFeedback.playSoft()
             }
-            .font(.system(size: 9))
-            .foregroundColor(Color.white.opacity(0.50))
+            .font(MacPulseTypography.captionSemibold)
+            .foregroundColor(MacPulseColors.textTertiary)
             .buttonStyle(.plain)
         }
-        .frame(width: 70)
+        .frame(width: 72)
     }
     
     private func quickPresetButton(_ label: String, _ mins: Int) -> some View {
         Button {
             setTimerDuration(mins)
-            playSoftHaptic()
+            HapticFeedback.playSoft()
         } label: {
             Text(label)
-                .font(.system(size: 8.5, weight: .semibold))
-                .foregroundColor(selectedPresetMinutes == mins ? Color(hex: "#38BDF8") : Color.white.opacity(0.55))
-                .padding(.horizontal, 5)
+                .font(MacPulseTypography.captionBold)
+                .foregroundColor(selectedPresetMinutes == mins ? MacPulseColors.appleCyan : MacPulseColors.textSecondary)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 2.5)
                 .background(
-                    Capsule()
-                        .fill(selectedPresetMinutes == mins ? Color(hex: "#38BDF8").opacity(0.18) : Color.white.opacity(0.06))
+                    Capsule().fill(
+                        selectedPresetMinutes == mins ? MacPulseColors.appleCyan.opacity(0.20) : MacPulseColors.pillBackground
+                    )
                 )
         }
         .buttonStyle(.plain)

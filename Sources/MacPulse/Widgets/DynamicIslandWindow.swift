@@ -79,8 +79,8 @@ public final class DynamicIslandController: ObservableObject {
     private var clickOutsideMonitor: Any?
     
     // Apple-Engineered Notch & Island Dimensions
-    private let compactSize = NSSize(width: 236, height: 26)
-    private let expandedSize = NSSize(width: 560, height: 175)
+    private let compactSize = MacPulseDimensions.compactIslandSize
+    private let expandedSize = MacPulseDimensions.expandedIslandSize
     
     private init() {
         setupDistributedNotifications()
@@ -94,10 +94,12 @@ public final class DynamicIslandController: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notif in
-            guard let isPlugged = notif.userInfo?["isPluggedIn"] as? Bool,
-                  let pct = notif.userInfo?["percentage"] as? Int else { return }
-            let msg = isPlugged ? "⚡️ Charging (\(pct)%)" : "Battery Mode (\(pct)%)"
-            self?.triggerLiveActivity(msg, duration: 3.5)
+            Task { @MainActor in
+                guard let isPlugged = notif.userInfo?["isPluggedIn"] as? Bool,
+                      let pct = notif.userInfo?["percentage"] as? Int else { return }
+                let msg = isPlugged ? "⚡️ Charging (\(pct)%)" : "Battery Mode (\(pct)%)"
+                self?.triggerLiveActivity(msg, duration: 3.5)
+            }
         }
     }
     
@@ -432,15 +434,15 @@ public struct HallmarkDynamicIslandRootView: View {
         ZStack(alignment: .top) {
             // Unified Obsidian Liquid Glass Chassis (Zero Drop Shadow, Pure Apple Squircle)
             DynamicIslandUnifiedShape(
-                cornerRadius: isExpanded ? 22 : 13,
+                cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
                 isExpanded: isExpanded
             )
-            .fill(Color(hex: "#0A0A0C").opacity(0.96))
+            .fill(MacPulseColors.islandBackground.opacity(0.96))
             .background(
                 VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
                     .clipShape(
                         DynamicIslandUnifiedShape(
-                            cornerRadius: isExpanded ? 22 : 13,
+                            cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
                             isExpanded: isExpanded
                         )
                     )
@@ -448,7 +450,7 @@ public struct HallmarkDynamicIslandRootView: View {
             .overlay(
                 // Subtle Specular Hairline Rim Light (0.5pt)
                 DynamicIslandUnifiedShape(
-                    cornerRadius: isExpanded ? 22 : 13,
+                    cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
                     isExpanded: isExpanded
                 )
                 .stroke(
@@ -474,16 +476,21 @@ public struct HallmarkDynamicIslandRootView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
-        .frame(width: isExpanded ? 560 : (controller.activeLiveActivityText != nil ? 270 : 236), height: isExpanded ? 175 : 26)
+        .frame(
+            width: isExpanded
+                ? MacPulseDimensions.expandedIslandSize.width
+                : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width),
+            height: isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height
+        )
         .clipShape(
             DynamicIslandUnifiedShape(
-                cornerRadius: isExpanded ? 22 : 13,
+                cornerRadius: isExpanded ? MacPulseRadius.chassis : MacPulseRadius.compactChassis,
                 isExpanded: isExpanded
             )
         )
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isExpanded)
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: controller.activeLiveActivityText)
-        .animation(.spring(response: 0.22, dampingFraction: 0.78), value: isHovering)
+        .animation(MacPulseAnimations.islandSpring, value: isExpanded)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)
+        .animation(MacPulseAnimations.snappySpring, value: isHovering)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -500,33 +507,26 @@ public struct HallmarkDynamicIslandRootView: View {
     }
     
     private func expand() {
-        playSoftHaptic()
+        HapticFeedback.playSoft()
         controller.expand()
     }
     
     private func collapse() {
-        playSoftHaptic()
+        HapticFeedback.playSoft()
         controller.collapse()
-    }
-    
-    private func playSoftHaptic() {
-        if let sound = NSSound(named: "Tink") {
-            sound.volume = 0.2
-            sound.play()
-        }
     }
     
     // MARK: - 1. Compact Dynamic Island Pill (236 x 26 — Flush Screen-Top Anchor)
     private var compactPillBar: some View {
         Group {
             if let liveText = controller.activeLiveActivityText {
-                HStack(spacing: 6) {
+                HStack(spacing: MacPulseSpacing.sm) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#30D158"))
+                        .foregroundColor(MacPulseColors.appleGreen)
                     Text(liveText)
-                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
+                        .font(MacPulseTypography.footnoteRounded)
+                        .foregroundColor(MacPulseColors.textPrimary)
                 }
                 .frame(height: 26)
                 .padding(.horizontal, 12)
@@ -539,76 +539,76 @@ public struct HallmarkDynamicIslandRootView: View {
                     HStack(spacing: 4.5) {
                         Image(systemName: "wifi")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Color(hex: "#38BDF8"))
+                            .foregroundColor(MacPulseColors.appleCyan)
                         
                         let todayTotal = history.todayDownloadBytes + history.todayUploadBytes
                         Text(NetworkUnitFormatter.formatBytes(todayTotal))
-                            .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
+                            .font(MacPulseTypography.footnoteRounded)
+                            .foregroundColor(MacPulseColors.textPrimary)
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { expand() }
                     
-                    Spacer(minLength: 4)
+                    Spacer(minLength: MacPulseSpacing.xs)
                     
                     // Subtle Hairline Divider
                     Rectangle()
-                        .fill(Color.white.opacity(0.14))
+                        .fill(MacPulseColors.divider)
                         .frame(width: 1, height: 10)
                     
-                    Spacer(minLength: 4)
+                    Spacer(minLength: MacPulseSpacing.xs)
                     
                     // 2. Hardware Vitals
-                    HStack(spacing: 6) {
+                    HStack(spacing: MacPulseSpacing.sm) {
                         HStack(spacing: 3) {
                             Image(systemName: "cpu")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(Color.white.opacity(0.60))
+                                .foregroundColor(MacPulseColors.textSecondary)
                             Text("\(Int(sys.cpu.usagePercentage))%")
-                                .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.white)
+                                .font(MacPulseTypography.metricMono)
+                                .foregroundColor(MacPulseColors.textPrimary)
                         }
                         
                         HStack(spacing: 3) {
                             Image(systemName: "memorychip")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(Color.white.opacity(0.60))
+                                .foregroundColor(MacPulseColors.textSecondary)
                             Text("\(Int(sys.ram.usagePercentage))%")
-                                .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.white)
+                                .font(MacPulseTypography.metricMono)
+                                .foregroundColor(MacPulseColors.textPrimary)
                         }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { expand() }
                     
-                    Spacer(minLength: 4)
+                    Spacer(minLength: MacPulseSpacing.xs)
                     
                     // Subtle Hairline Divider
                     Rectangle()
-                        .fill(Color.white.opacity(0.14))
+                        .fill(MacPulseColors.divider)
                         .frame(width: 1, height: 10)
                     
-                    Spacer(minLength: 4)
+                    Spacer(minLength: MacPulseSpacing.xs)
                     
                     // 3. Status Metric: Active Timer OR Thermals
                     Group {
                         if isAnyTimerRunning {
                             HStack(spacing: 3) {
                                 Image(systemName: "timer")
-                                    .font(.system(size: 8.5, weight: .bold))
-                                    .foregroundColor(Color(hex: "#30D158"))
+                                    .font(MacPulseTypography.micro)
+                                    .foregroundColor(MacPulseColors.appleGreen)
                                 Text(activeTimerFormattedString)
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                    .foregroundColor(Color(hex: "#30D158"))
+                                    .foregroundColor(MacPulseColors.appleGreen)
                             }
                             .padding(.horizontal, 4.5)
                             .padding(.vertical, 1.5)
-                            .background(Capsule().fill(Color(hex: "#30D158").opacity(0.16)))
+                            .background(Capsule().fill(MacPulseColors.appleGreen.opacity(0.16)))
                         } else {
                             let temp = sys.battery.temperatureCelsius > 0 ? sys.battery.temperatureCelsius : 20.0
                             Text("\(Int(temp))°C")
-                                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                                .foregroundColor(Color.white.opacity(0.65))
+                                .font(MacPulseTypography.metricMono)
+                                .foregroundColor(MacPulseColors.textSecondary)
                         }
                     }
                     .contentShape(Rectangle())
@@ -625,31 +625,31 @@ public struct HallmarkDynamicIslandRootView: View {
     
     // MARK: - 2. Expanded Shelf Content
     private var expandedShelfContent: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: MacPulseSpacing.md) {
             // Top Navigation & Utility Bar
-            HStack(spacing: 6) {
+            HStack(spacing: MacPulseSpacing.sm) {
                 // Segmented Capsule Tab Switcher
-                HStack(spacing: 2) {
+                HStack(spacing: MacPulseSpacing.xxs) {
                     ForEach(MacPulseShelfTab.allCases) { tab in
                         Button {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            withAnimation(MacPulseAnimations.islandSpring) {
                                 controller.activeTab = tab
                             }
-                            playSoftHaptic()
+                            HapticFeedback.playSoft()
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: MacPulseSpacing.xs) {
                                 Image(systemName: tab.icon)
-                                    .font(.system(size: 8.5, weight: .medium))
+                                    .font(MacPulseTypography.caption2)
                                 Text(tab.rawValue)
-                                    .font(.system(size: 9.5, weight: controller.activeTab == tab ? .semibold : .regular))
+                                    .font(controller.activeTab == tab ? MacPulseTypography.captionSemibold : MacPulseTypography.caption)
                             }
-                            .foregroundColor(controller.activeTab == tab ? .white : Color.white.opacity(0.55))
+                            .foregroundColor(controller.activeTab == tab ? .white : MacPulseColors.textSecondary)
                             .padding(.horizontal, 7.5)
                             .padding(.vertical, 3.5)
                             .background {
                                 if controller.activeTab == tab {
                                     Capsule()
-                                        .fill(Color.white.opacity(0.18))
+                                        .fill(MacPulseColors.activeTabPill)
                                         .matchedGeometryEffect(id: "activeTabCapsule", in: tabAnimationNamespace)
                                 }
                             }
@@ -658,44 +658,41 @@ public struct HallmarkDynamicIslandRootView: View {
                     }
                 }
                 .padding(2.5)
-                .background(Capsule().fill(Color.white.opacity(0.06)))
+                .background(Capsule().fill(MacPulseColors.pillBackground))
                 
                 Spacer()
                 
                 // Clock Stamp
                 Text(currentTimeString)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(Color.white.opacity(0.50))
+                    .font(MacPulseTypography.footnoteMedium)
+                    .foregroundColor(MacPulseColors.textTertiary)
                     .padding(.trailing, 2)
                 
                 // Camera Mirror Action
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                IslandIconButton(
+                    icon: controller.showCameraMirror ? "camera.fill" : "web.camera",
+                    iconSize: 10,
+                    iconWeight: .medium,
+                    foregroundColor: controller.showCameraMirror ? MacPulseColors.appleGreen : MacPulseColors.textSecondary,
+                    backgroundColor: controller.showCameraMirror ? MacPulseColors.appleGreen.opacity(0.20) : Color.white.opacity(0.08),
+                    tooltip: "Toggle Camera Mirror"
+                ) {
+                    withAnimation(MacPulseAnimations.islandSpring) {
                         controller.toggleCameraMirror()
                     }
-                    playSoftHaptic()
-                } label: {
-                    Image(systemName: controller.showCameraMirror ? "camera.fill" : "web.camera")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(controller.showCameraMirror ? Color(hex: "#30D158") : Color.white.opacity(0.70))
-                        .frame(width: 22, height: 22)
-                        .background(Circle().fill(controller.showCameraMirror ? Color(hex: "#30D158").opacity(0.20) : Color.white.opacity(0.08)))
                 }
-                .buttonStyle(.plain)
-                .help("Toggle Camera Mirror")
                 
                 // Collapse Action
-                Button {
+                IslandIconButton(
+                    icon: "chevron.up",
+                    iconSize: 9,
+                    iconWeight: .bold,
+                    foregroundColor: MacPulseColors.textPrimary,
+                    backgroundColor: Color.white.opacity(0.10),
+                    tooltip: "Collapse Shelf"
+                ) {
                     collapse()
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color.white.opacity(0.85))
-                        .frame(width: 22, height: 22)
-                        .background(Circle().fill(Color.white.opacity(0.10)))
                 }
-                .buttonStyle(.plain)
-                .help("Collapse Shelf")
             }
             .padding(.horizontal, 14)
             .padding(.top, 8)
