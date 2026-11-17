@@ -43,7 +43,7 @@ public struct DynamicIslandHomeView: View {
                 icon: "sparkles"
             ) {
                 media.quitAllApps()
-                controller.triggerToast(title: "Apps Closed", subtitle: "All inactive apps terminated")
+                controller.triggerToast(icon: "sparkles", title: "Apps Closed", subtitle: "All inactive apps terminated")
             }
             
             // Row 2: Split Action Row (Terminal & Camera Mirror - Pure Icon Style)
@@ -54,7 +54,7 @@ public struct DynamicIslandHomeView: View {
                     tooltip: "Terminal"
                 ) {
                     media.openTerminal()
-                    controller.triggerToast(title: "Terminal", subtitle: "Terminal launched")
+                    controller.triggerToast(icon: "apple.terminal", title: "Terminal", subtitle: "Terminal launched")
                 }
                 
                 iconActionTile(

@@ -228,12 +228,12 @@ public struct DesktopWidgetRootView: View {
             }
             
             // Timer ticker if running
-            if timer.pomodoroState == .running || timer.countdownState == .running {
+            if timer.reminderState == .running || timer.countdownState == .running {
                 HStack {
                     Image(systemName: "timer")
                         .foregroundColor(MacPulseTheme.accentGreen)
                         .font(.system(size: 11))
-                    let remaining = timer.pomodoroState == .running ? timer.pomodoroRemaining : timer.countdownRemaining
+                    let remaining = timer.reminderState == .running ? timer.reminderRemaining : timer.countdownRemaining
                     let m = Int(remaining) / 60
                     let s = Int(remaining) % 60
                     Text(String(format: "Timer: %02d:%02d remaining", m, s))

@@ -24,7 +24,7 @@ public struct TimerCard: View {
                             Text("Productivity & Focus Timers")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
-                            Text("Stopwatch, Countdown & Pomodoro intervals")
+                            Text("Reminder, Countdown & Stopwatch intervals")
                                 .font(.system(size: 11))
                                 .foregroundColor(MacPulseTheme.textSecondary)
                         }
@@ -42,8 +42,6 @@ public struct TimerCard: View {
                 switch timerService.activeTab {
                 case .reminder:
                     ReminderView()
-                case .pomodoro:
-                    PomodoroView()
                 case .countdown:
                     CountdownView()
                 case .stopwatch:
@@ -54,166 +52,7 @@ public struct TimerCard: View {
     }
 }
 
-// MARK: - 1. Pomodoro View
-public struct PomodoroView: View {
-    @ObservedObject private var timer = TimerService.shared
-    
-    public var body: some View {
-        VStack(spacing: 20) {
-            // Mode Selectors
-            HStack(spacing: 8) {
-                ForEach(PomodoroMode.allCases, id: \.self) { mode in
-                    let isSelected = timer.pomodoroMode == mode
-                    Button {
-                        timer.switchPomodoroMode(to: mode)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: mode.icon)
-                                .font(.system(size: 11))
-                            Text(mode.rawValue)
-                                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                        }
-                        .foregroundColor(isSelected ? .white : MacPulseTheme.textSecondary)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(isSelected ? modeColor(mode).opacity(0.3) : Color.white.opacity(0.04))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isSelected ? modeColor(mode) : MacPulseTheme.borderSubtle, lineWidth: 1)
-                                )
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-                
-                Spacer()
-                
-                Toggle("Auto-advance", isOn: $timer.autoAdvancePomodoro)
-                    .toggleStyle(.switch)
-                    .font(.system(size: 11))
-                    .foregroundColor(MacPulseTheme.textSecondary)
-            }
-            
-            // Big Circular Timer Display
-            let progress = timer.pomodoroDuration > 0 ? (timer.pomodoroDuration - timer.pomodoroRemaining) / timer.pomodoroDuration : 0.0
-            
-            HStack(spacing: 40) {
-                ZStack {
-                    CircularProgressView(
-                        progress: progress,
-                        lineWidth: 12,
-                        gradient: timer.pomodoroMode == .focus ? MacPulseTheme.pomodoroGradient : MacPulseTheme.breakGradient,
-                        size: 150
-                    )
-                    
-                    VStack(spacing: 4) {
-                        Text(formatMinutesSeconds(timer.pomodoroRemaining))
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        Text(timer.pomodoroMode.rawValue.uppercased())
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(modeColor(timer.pomodoroMode))
-                    }
-                }
-                
-                // Controls & Session Stats
-                VStack(alignment: .leading, spacing: 16) {
-                    // Completed sessions tally
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("COMPLETED SESSIONS")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(MacPulseTheme.textTertiary)
-                        
-                        HStack(spacing: 6) {
-                            ForEach(0..<4, id: \.self) { index in
-                                let filled = (timer.completedPomodoros % 4) > index || (timer.completedPomodoros > 0 && timer.completedPomodoros % 4 == 0)
-                                Circle()
-                                    .fill(filled ? MacPulseTheme.accentRed : Color.white.opacity(0.1))
-                                    .frame(width: 14, height: 14)
-                                    .overlay(
-                                        Circle().stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                    )
-                            }
-                            Text("(\(timer.completedPomodoros) total)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(MacPulseTheme.textSecondary)
-                        }
-                    }
-                    
-                    // Buttons
-                    HStack(spacing: 12) {
-                        if timer.pomodoroState == .running {
-                            ModernActionButton(
-                                title: "Pause",
-                                icon: "pause.fill",
-                                gradient: LinearGradient(colors: [Color.orange, Color.red], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            ) {
-                                timer.pausePomodoro()
-                            }
-                        } else {
-                            ModernActionButton(
-                                title: timer.pomodoroState == .paused ? "Resume" : "Start Focus",
-                                icon: "play.fill",
-                                gradient: timer.pomodoroMode == .focus ? MacPulseTheme.pomodoroGradient : MacPulseTheme.breakGradient
-                            ) {
-                                timer.startPomodoro()
-                            }
-                        }
-                        
-                        Button {
-                            timer.skipPomodoro()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "forward.fill")
-                                Text("Skip")
-                            }
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(MacPulseTheme.textSecondary)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 14)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
-                        }
-                        .buttonStyle(.plain)
-                        
-                        Button {
-                            timer.resetPomodoro()
-                        } label: {
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(MacPulseTheme.textTertiary)
-                                .padding(8)
-                                .background(Circle().fill(Color.white.opacity(0.06)))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding(.vertical, 6)
-        }
-    }
-    
-    private func modeColor(_ mode: PomodoroMode) -> Color {
-        switch mode {
-        case .focus: return MacPulseTheme.accentRed
-        case .shortBreak: return MacPulseTheme.accentGreen
-        case .longBreak: return MacPulseTheme.accentCyan
-        }
-    }
-    
-    private func formatMinutesSeconds(_ seconds: TimeInterval) -> String {
-        let s = Int(max(0, seconds))
-        let min = s / 60
-        let sec = s % 60
-        return String(format: "%02d:%02d", min, sec)
-    }
-}
-
-// MARK: - 2. Countdown View
+// MARK: - 1. Countdown View
 public struct CountdownView: View {
     @ObservedObject private var timer = TimerService.shared
     

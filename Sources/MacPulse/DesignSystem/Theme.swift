@@ -43,8 +43,8 @@ public enum MacPulseTheme {
     public static let cpuGradient = MacPulseColors.cpuGradient
     public static let ramGradient = MacPulseColors.ramGradient
     
-    public static let pomodoroGradient = LinearGradient(
-        colors: [Color(red: 1.00, green: 0.35, blue: 0.35), Color(red: 0.95, green: 0.20, blue: 0.40)],
+    public static let reminderGradient = LinearGradient(
+        colors: [Color(red: 0.70, green: 0.40, blue: 1.00), Color(red: 0.45, green: 0.35, blue: 0.95)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

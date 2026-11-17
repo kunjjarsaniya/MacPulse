@@ -161,8 +161,10 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var activeTab: MacPulseShelfTab = .home
     @Published public var navigationDirection: TabTransitionDirection = .forward
     @Published public var showToast: Bool = false
+    @Published public var toastIcon: String = "checkmark.circle.fill"
     @Published public var toastMessage: String = ""
     @Published public var toastSubtitle: String = ""
+    private var toastDismissTimer: DispatchWorkItem?
     @Published public var activeLiveActivityText: String? = nil
     @Published public var activeHUD: DynamicIslandHUDType? = nil
     @Published public var showCameraMirror: Bool = false
@@ -399,6 +401,7 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleToggleBrightnessHUD), name: NSNotification.Name("com.macpulse.toggleBrightnessHUD"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTestAlert), name: NSNotification.Name("com.macpulse.testAlert"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTestReminderAlert), name: NSNotification.Name("com.macpulse.testReminderAlert"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleTestToast), name: NSNotification.Name("com.macpulse.testToast"), object: nil, suspensionBehavior: .deliverImmediately)
         
         // Backward-compatible notification handlers
         center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.live"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -503,6 +506,10 @@ public final class DynamicIslandController: ObservableObject {
         ) {
             TimerService.shared.stopReminder()
         }
+    }
+    
+    @objc private func handleTestToast() {
+        triggerToast(icon: "doc.on.doc.fill", title: "Copied!", subtitle: "Copied to clipboard")
     }
     
     @objc private func handleSwitchTab(_ notification: Notification) {
@@ -672,15 +679,23 @@ public final class DynamicIslandController: ObservableObject {
         }
     }
     
-    public func triggerToast(title: String, subtitle: String) {
+    public func triggerToast(icon: String = "checkmark.circle.fill", title: String, subtitle: String = "") {
+        toastDismissTimer?.cancel()
+        toastIcon = icon
         toastMessage = title
         toastSubtitle = subtitle
-        showToast = true
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
-            guard let self = self, self.showToast else { return }
-            self.showToast = false
+        withAnimation(MacPulseAnimations.islandSpring) {
+            showToast = true
         }
+        
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                self.showToast = false
+            }
+        }
+        toastDismissTimer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: work)
     }
     
     public func toggle() {
@@ -794,7 +809,7 @@ public struct HallmarkDynamicIslandRootView: View {
     }
     
     private var isAnyTimerRunning: Bool {
-        timer.pomodoroState == .running || timer.countdownState == .running || timer.stopwatchState == .running
+        timer.reminderState == .running || timer.countdownState == .running || timer.stopwatchState == .running
     }
     
     private var currentNotchShape: NotchShape {
@@ -856,6 +871,38 @@ public struct HallmarkDynamicIslandRootView: View {
                 compactPillBar
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
+            
+            // Floating Toast Notification Pill
+            if controller.showToast {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Image(systemName: controller.toastIcon.isEmpty ? "checkmark.circle.fill" : controller.toastIcon)
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundColor(.white)
+                        Text(controller.toastMessage)
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                        if !controller.toastSubtitle.isEmpty {
+                            Text("• \(controller.toastSubtitle)")
+                                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                                .foregroundColor(Color.white.opacity(0.65))
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 0.12, green: 0.12, blue: 0.14).opacity(0.96))
+                            .overlay(
+                                Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.7)
+                            )
+                            .shadow(color: Color.black.opacity(0.4), radius: 6, y: 3)
+                    )
+                    .padding(.bottom, 6)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .frame(
             width: controller.activeAlert != nil
@@ -872,6 +919,7 @@ public struct HallmarkDynamicIslandRootView: View {
                     : (isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height))
         )
         .clipShape(currentNotchShape)
+        .animation(MacPulseAnimations.islandSpring, value: controller.showToast)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeAlert)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeHUD)
         .animation(MacPulseAnimations.islandSpring, value: isExpanded)
@@ -1156,9 +1204,9 @@ public struct HallmarkDynamicIslandRootView: View {
     }
     
     private var activeTimerFormattedString: String {
-        if timer.pomodoroState == .running {
-            let mins = Int(timer.pomodoroRemaining) / 60
-            let secs = Int(timer.pomodoroRemaining) % 60
+        if timer.reminderState == .running {
+            let mins = Int(timer.reminderRemaining) / 60
+            let secs = Int(timer.reminderRemaining) % 60
             return String(format: "%02d:%02d", mins, secs)
         } else if timer.countdownState == .running {
             let mins = Int(timer.countdownRemaining) / 60

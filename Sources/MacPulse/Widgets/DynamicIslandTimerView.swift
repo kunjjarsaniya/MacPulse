@@ -15,7 +15,6 @@ public struct DynamicIslandTimerView: View {
         switch timer.activeTab {
         case .reminder: return timer.reminderState == .running
         case .countdown: return timer.countdownState == .running
-        case .pomodoro: return timer.pomodoroState == .running
         case .stopwatch: return timer.stopwatchState == .running
         }
     }
@@ -24,7 +23,6 @@ public struct DynamicIslandTimerView: View {
         switch timer.activeTab {
         case .reminder: return timer.reminderState == .paused
         case .countdown: return timer.countdownState == .paused
-        case .pomodoro: return timer.pomodoroState == .paused
         case .stopwatch: return timer.stopwatchState == .paused
         }
     }
@@ -47,11 +45,6 @@ public struct DynamicIslandTimerView: View {
             }
             return String(format: "%02d:00", selectedMinutes)
             
-        case .pomodoro:
-            let mins = Int(timer.pomodoroRemaining) / 60
-            let secs = Int(timer.pomodoroRemaining) % 60
-            return String(format: "%02d:%02d", mins, secs)
-            
         case .stopwatch:
             let total = Int(timer.stopwatchElapsed)
             let mins = total / 60
@@ -73,12 +66,6 @@ public struct DynamicIslandTimerView: View {
             guard timer.countdownDuration > 0 else { return 0 }
             if isRunning || isPaused {
                 return max(0, min(1.0, 1.0 - (timer.countdownRemaining / timer.countdownDuration)))
-            }
-            return 0
-        case .pomodoro:
-            guard timer.pomodoroDuration > 0 else { return 0 }
-            if isRunning || isPaused {
-                return max(0, min(1.0, 1.0 - (timer.pomodoroRemaining / timer.pomodoroDuration)))
             }
             return 0
         case .stopwatch:
@@ -139,12 +126,6 @@ public struct DynamicIslandTimerView: View {
                 }
                 timer.startCountdown()
             }
-        case .pomodoro:
-            if timer.pomodoroState == .running {
-                timer.pausePomodoro()
-            } else {
-                timer.startPomodoro()
-            }
         case .stopwatch:
             if timer.stopwatchState == .running {
                 timer.pauseStopwatch()
@@ -163,8 +144,6 @@ public struct DynamicIslandTimerView: View {
         case .countdown:
             timer.resetCountdown()
             timer.setCountdownPreset(seconds: TimeInterval(selectedMinutes * 60))
-        case .pomodoro:
-            timer.resetPomodoro()
         case .stopwatch:
             timer.resetStopwatch()
         }
@@ -259,15 +238,6 @@ public struct DynamicIslandTimerView: View {
                     }
                     .foregroundColor(Color.white.opacity(0.40))
                     .padding(.leading, 6)
-                } else if timer.activeTab == .pomodoro {
-                    HStack(spacing: 3) {
-                        Image(systemName: timer.pomodoroMode == .focus ? "brain.head.profile" : "cup.and.saucer.fill")
-                            .font(.system(size: 7.5))
-                        Text(timer.pomodoroMode == .focus ? "Focus (\(timer.completedPomodoros))" : "Break")
-                            .font(.system(size: 8, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundColor(Color.white.opacity(0.40))
-                    .padding(.leading, 6)
                 } else {
                     Text("\(timer.stopwatchLaps.count) Laps")
                         .font(.system(size: 8, weight: .medium, design: .rounded))
@@ -310,7 +280,7 @@ public struct DynamicIslandTimerView: View {
             .frame(height: 3)
             .padding(.horizontal, 8)
             
-            // Stepper & Presets (Reminder, Countdown or Pomodoro Mode)
+            // Stepper & Presets (Reminder or Countdown Mode)
             if timer.activeTab == .reminder {
                 HStack(spacing: 3) {
                     // Minus 1 Minute
@@ -398,13 +368,6 @@ public struct DynamicIslandTimerView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                }
-                .padding(.top, 2)
-            } else if timer.activeTab == .pomodoro {
-                HStack(spacing: 5) {
-                    pomodoroModePill("Focus 25m", .focus)
-                    pomodoroModePill("Short 5m", .shortBreak)
-                    pomodoroModePill("Long 15m", .longBreak)
                 }
                 .padding(.top, 2)
             } else {
@@ -517,29 +480,6 @@ public struct DynamicIslandTimerView: View {
                 .background(
                     Capsule().fill(
                         selectedMinutes == mins && !isRunning
-                            ? Color.white.opacity(0.22)
-                            : Color.white.opacity(0.06)
-                    )
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(isRunning)
-    }
-    
-    // Pomodoro Mode Pill
-    private func pomodoroModePill(_ label: String, _ mode: PomodoroMode) -> some View {
-        Button {
-            timer.switchPomodoroMode(to: mode)
-            HapticFeedback.playSoft()
-        } label: {
-            Text(label)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundColor(timer.pomodoroMode == mode ? .white : Color.white.opacity(0.45))
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule().fill(
-                        timer.pomodoroMode == mode
                             ? Color.white.opacity(0.22)
                             : Color.white.opacity(0.06)
                     )

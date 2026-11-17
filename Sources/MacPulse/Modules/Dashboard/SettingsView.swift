@@ -65,7 +65,7 @@ public struct SettingsView: View {
                             Text("Sound Effects")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.white)
-                            Text("Play chime upon timer & pomodoro completion")
+                            Text("Play chime upon timer & reminder completion")
                                 .font(.system(size: 11))
                                 .foregroundColor(MacPulseTheme.textSecondary)
                         }

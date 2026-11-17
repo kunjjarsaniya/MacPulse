@@ -34,9 +34,7 @@ public struct UserPreferences: Codable {
     public var dailyDataCapGB: Double = 10.0 // optional daily quota alert
     public var soundAlertsEnabled: Bool = true
     public var notificationsEnabled: Bool = true
-    public var pomodoroWorkMinutes: Int = 25
-    public var pomodoroShortBreakMinutes: Int = 5
-    public var pomodoroLongBreakMinutes: Int = 15
+    public var reminderIntervalMinutes: Int = 5
     
     public init() {}
 }

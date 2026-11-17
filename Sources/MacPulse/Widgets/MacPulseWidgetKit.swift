@@ -11,7 +11,7 @@ public struct MacPulseWidgetEntry: TimelineEntry {
     public let cpuPercentage: Int
     public let ramPercentage: Int
     public let batteryPercentage: Int
-    public let pomodoroRemaining: String
+    public let timerRemaining: String
     
     public init(
         date: Date = Date(),
@@ -21,7 +21,7 @@ public struct MacPulseWidgetEntry: TimelineEntry {
         cpuPercentage: Int = 18,
         ramPercentage: Int = 54,
         batteryPercentage: Int = 100,
-        pomodoroRemaining: String = "25:00"
+        timerRemaining: String = "05:00"
     ) {
         self.date = date
         self.downloadSpeed = downloadSpeed
@@ -30,7 +30,7 @@ public struct MacPulseWidgetEntry: TimelineEntry {
         self.cpuPercentage = cpuPercentage
         self.ramPercentage = ramPercentage
         self.batteryPercentage = batteryPercentage
-        self.pomodoroRemaining = pomodoroRemaining
+        self.timerRemaining = timerRemaining
     }
 }
 
@@ -190,7 +190,7 @@ public struct MacPulseWidgetEntryView: View {
                     Image(systemName: "timer")
                         .font(.system(size: 9))
                         .foregroundColor(MacPulseTheme.accentGreen)
-                    Text("Focus: \(entry.pomodoroRemaining)")
+                    Text("Timer: \(entry.timerRemaining)")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(MacPulseTheme.textSecondary)
                 }

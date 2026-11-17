@@ -39,7 +39,7 @@ public struct DynamicIslandNotesView: View {
                 HStack(spacing: MacPulseSpacing.lg) {
                     Button("Copy All") {
                         notes.copyAll()
-                        controller.triggerToast(title: "Note Copied", subtitle: "Note text copied to clipboard")
+                        controller.triggerToast(icon: "doc.on.doc.fill", title: "Note Copied!", subtitle: "Copied to clipboard")
                         HapticFeedback.playSoft()
                     }
                     .font(MacPulseTypography.captionSemibold)
@@ -48,6 +48,7 @@ public struct DynamicIslandNotesView: View {
                     
                     Button("Clear") {
                         notes.clear()
+                        controller.triggerToast(icon: "trash.fill", title: "Note Cleared", subtitle: "Scratchpad emptied")
                         HapticFeedback.playSoft()
                     }
                     .font(MacPulseTypography.caption)

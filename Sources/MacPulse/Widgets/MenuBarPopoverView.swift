@@ -128,14 +128,14 @@ public struct MenuBarPopoverView: View {
                 
                 Spacer()
                 
-                if timer.pomodoroState == .running {
-                    Text("⏱️ Pomodoro Active")
+                if timer.reminderState == .running {
+                    Text("⏱️ Reminder Active")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(MacPulseTheme.accentGreen)
                 } else {
-                    Button("Quick Focus (25m)") {
-                        timer.switchPomodoroMode(to: .focus)
-                        timer.startPomodoro()
+                    Button("Quick Reminder (5m)") {
+                        timer.setReminderInterval(seconds: 5 * 60)
+                        timer.startReminder()
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(MacPulseTheme.accentGreen)
