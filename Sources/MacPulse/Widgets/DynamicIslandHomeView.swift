@@ -35,44 +35,81 @@ public struct DynamicIslandHomeView: View {
     
     // MARK: - Quick Action Buttons Stack (Monochromatic Apple Styling)
     private var actionStack: some View {
-        VStack(spacing: MacPulseSpacing.sm) {
-            IslandActionButton(
+        VStack(spacing: 10) {
+            quickActionCard(
                 title: "Quit All Apps",
-                icon: "sparkles",
-                iconColor: Color.white.opacity(0.85)
+                subtitle: "Force close background apps",
+                icon: "sparkles"
             ) {
                 media.quitAllApps()
                 controller.triggerToast(title: "Apps Closed", subtitle: "All inactive apps terminated")
             }
             
-            IslandActionButton(
+            quickActionCard(
                 title: "Terminal",
+                subtitle: "Quick shell command access",
                 icon: "apple.terminal",
-                iconColor: Color.white.opacity(0.85),
-                accessory: {
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(MacPulseColors.textTertiary)
-                }
+                isExternal: true
             ) {
                 media.openTerminal()
             }
-            
-            IslandActionButton(
-                title: "Mirror",
-                icon: "web.camera",
-                iconColor: Color.white.opacity(0.85),
-                accessory: {
-                    Circle()
-                        .fill(controller.showCameraMirror ? Color.white : Color.white.opacity(0.20))
-                        .frame(width: 6, height: 6)
+        }
+        .frame(height: MacPulseDimensions.contentHeight)
+    }
+    
+    private func quickActionCard(
+        title: String,
+        subtitle: String,
+        icon: String,
+        isExternal: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            HapticFeedback.playSoft()
+            action()
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
                 }
-            ) {
-                withAnimation(MacPulseAnimations.islandSpring) {
-                    controller.toggleCameraMirror()
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.45))
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if isExternal {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.35))
                 }
             }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(
+                RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
+                    .fill(MacPulseColors.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: MacPulseRadius.card, style: .continuous)
+                            .stroke(MacPulseColors.hairline, lineWidth: 0.6)
+                    )
+            )
         }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Media Player Card

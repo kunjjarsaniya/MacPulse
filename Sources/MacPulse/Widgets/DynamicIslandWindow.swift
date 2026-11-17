@@ -104,6 +104,13 @@ public enum MacPulseShelfTab: String, CaseIterable, Identifiable {
     }
 }
 
+public enum DynamicIslandHUDType: String, CaseIterable, Identifiable {
+    case volume = "Volume"
+    case brightness = "Brightness"
+    
+    public var id: String { rawValue }
+}
+
 @MainActor
 public final class DynamicIslandController: ObservableObject {
     public static let shared = DynamicIslandController()
@@ -115,7 +122,7 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var toastMessage: String = ""
     @Published public var toastSubtitle: String = ""
     @Published public var activeLiveActivityText: String? = nil
-    @Published public var showCameraMirror: Bool = false
+    @Published public var activeHUD: DynamicIslandHUDType? = nil
     
     private var liveActivityTimer: DispatchWorkItem?
     private var scrollEventMonitor: Any?
@@ -220,7 +227,10 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleTabTimer), name: NSNotification.Name("com.macpulse.tab.timer"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabClipboard), name: NSNotification.Name("com.macpulse.tab.clipboard"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabNotes), name: NSNotification.Name("com.macpulse.tab.notes"), object: nil, suspensionBehavior: .deliverImmediately)
-        center.addObserver(self, selector: #selector(handleToggleMirror), name: NSNotification.Name("com.macpulse.toggleMirror"), object: nil, suspensionBehavior: .deliverImmediately)
+        
+        // Volume & Brightness HUD notifications
+        center.addObserver(self, selector: #selector(handleToggleVolumeHUD), name: NSNotification.Name("com.macpulse.toggleVolumeHUD"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleToggleBrightnessHUD), name: NSNotification.Name("com.macpulse.toggleBrightnessHUD"), object: nil, suspensionBehavior: .deliverImmediately)
         
         // Backward-compatible notification handlers
         center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.live"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -231,51 +241,44 @@ public final class DynamicIslandController: ObservableObject {
     
     @objc private func handleTabHome() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .home
             self?.expand()
         }
     }
     @objc private func handleTabShelf() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .shelf
             self?.expand()
         }
     }
     @objc private func handleTabStats() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .stats
             self?.expand()
         }
     }
     @objc private func handleTabTimer() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .timer
             self?.expand()
         }
     }
     @objc private func handleTabClipboard() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .clipboard
             self?.expand()
         }
     }
     @objc private func handleTabNotes() {
         DispatchQueue.main.async { [weak self] in
-            self?.showCameraMirror = false
+            self?.activeHUD = nil
             self?.activeTab = .notes
             self?.expand()
-        }
-    }
-    
-    @objc private func handleToggleMirror() {
-        DispatchQueue.main.async { [weak self] in
-            self?.expand()
-            self?.toggleCameraMirror()
         }
     }
     
@@ -285,6 +288,14 @@ public final class DynamicIslandController: ObservableObject {
     
     @objc private func handleCollapse() {
         collapse()
+    }
+    
+    @objc private func handleToggleVolumeHUD() {
+        toggleHUD(.volume)
+    }
+    
+    @objc private func handleToggleBrightnessHUD() {
+        toggleHUD(.brightness)
     }
     
     @objc private func handleSwitchTab(_ notification: Notification) {
@@ -325,20 +336,32 @@ public final class DynamicIslandController: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.isExpanded = false
+            self.activeHUD = nil
             self.showToast = false
-            self.showCameraMirror = false
-            CameraMirrorManager.shared.stop()
             self.stopMonitoringClickOutside()
             self.updateWindowSize(expanded: false)
         }
     }
     
-    public func toggleCameraMirror() {
-        showCameraMirror.toggle()
-        if showCameraMirror {
-            CameraMirrorManager.shared.start()
-        } else {
-            CameraMirrorManager.shared.stop()
+    public func toggleHUD(_ type: DynamicIslandHUDType) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.activeHUD == type {
+                self.activeHUD = nil
+                self.updateWindowSize(expanded: self.isExpanded)
+            } else {
+                self.activeHUD = type
+                self.updateWindowSize(expanded: true)
+                self.startMonitoringClickOutside()
+            }
+        }
+    }
+    
+    public func dismissHUD() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.activeHUD = nil
+            self.updateWindowSize(expanded: self.isExpanded)
         }
     }
     
@@ -416,7 +439,6 @@ public final class DynamicIslandController: ObservableObject {
     
     public func close() {
         stopMonitoringClickOutside()
-        CameraMirrorManager.shared.stop()
         window?.orderOut(nil)
     }
     
@@ -437,7 +459,9 @@ public final class DynamicIslandController: ObservableObject {
             return (compactSize, .zero)
         }
         let targetSize: NSSize
-        if expanded {
+        if activeHUD != nil {
+            targetSize = MacPulseDimensions.hudIslandSize
+        } else if expanded {
             targetSize = expandedSize
         } else if activeLiveActivityText != nil {
             targetSize = NSSize(width: 280, height: compactSize.height)
@@ -482,8 +506,18 @@ public struct HallmarkDynamicIslandRootView: View {
     }
     
     private var currentNotchShape: NotchShape {
-        let topEar = isExpanded ? MacPulseRadius.topEarExpanded : MacPulseRadius.topEarCompact
-        let bottomRadius = isExpanded ? MacPulseRadius.bottomCornerExpanded : MacPulseRadius.bottomCornerCompact
+        let topEar: CGFloat
+        let bottomRadius: CGFloat
+        if controller.activeHUD != nil {
+            topEar = MacPulseRadius.topEarHUD
+            bottomRadius = MacPulseRadius.bottomCornerHUD
+        } else if isExpanded {
+            topEar = MacPulseRadius.topEarExpanded
+            bottomRadius = MacPulseRadius.bottomCornerExpanded
+        } else {
+            topEar = MacPulseRadius.topEarCompact
+            bottomRadius = MacPulseRadius.bottomCornerCompact
+        }
         return NotchShape(topCornerRadius: topEar, bottomCornerRadius: bottomRadius)
     }
     
@@ -502,7 +536,7 @@ public struct HallmarkDynamicIslandRootView: View {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(isHovering || isExpanded ? 0.22 : 0.12),
+                                    Color.white.opacity(isHovering || isExpanded || controller.activeHUD != nil ? 0.22 : 0.12),
                                     Color.white.opacity(0.05),
                                     Color.clear
                                 ],
@@ -514,7 +548,10 @@ public struct HallmarkDynamicIslandRootView: View {
                 )
             
             // Content Switcher
-            if isExpanded {
+            if let hud = controller.activeHUD {
+                DynamicIslandHUDControlView(hudType: hud)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if isExpanded {
                 expandedShelfContent
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
@@ -523,12 +560,17 @@ public struct HallmarkDynamicIslandRootView: View {
             }
         }
         .frame(
-            width: isExpanded
-                ? MacPulseDimensions.expandedIslandSize.width
-                : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width),
-            height: isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height
+            width: controller.activeHUD != nil
+                ? MacPulseDimensions.hudIslandSize.width
+                : (isExpanded
+                    ? MacPulseDimensions.expandedIslandSize.width
+                    : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width)),
+            height: controller.activeHUD != nil
+                ? MacPulseDimensions.hudIslandSize.height
+                : (isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height)
         )
         .clipShape(currentNotchShape)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeHUD)
         .animation(MacPulseAnimations.islandSpring, value: isExpanded)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)
         .animation(MacPulseAnimations.snappySpring, value: isHovering)
@@ -718,17 +760,31 @@ public struct HallmarkDynamicIslandRootView: View {
                     .foregroundColor(MacPulseColors.textTertiary)
                     .padding(.trailing, 2)
                 
-                // Camera Mirror Action
+                // Brightness Control Action
                 IslandIconButton(
-                    icon: controller.showCameraMirror ? "camera.fill" : "web.camera",
+                    icon: "sun.max.fill",
                     iconSize: 10,
                     iconWeight: .medium,
-                    foregroundColor: controller.showCameraMirror ? .white : MacPulseColors.textSecondary,
-                    backgroundColor: controller.showCameraMirror ? Color.white.opacity(0.20) : Color.white.opacity(0.08),
-                    tooltip: "Toggle Camera Mirror"
+                    foregroundColor: controller.activeHUD == .brightness ? .white : MacPulseColors.textSecondary,
+                    backgroundColor: controller.activeHUD == .brightness ? Color.white.opacity(0.20) : Color.white.opacity(0.08),
+                    tooltip: "Display Brightness"
                 ) {
                     withAnimation(MacPulseAnimations.islandSpring) {
-                        controller.toggleCameraMirror()
+                        controller.toggleHUD(.brightness)
+                    }
+                }
+                
+                // Sound / Volume Control Action
+                IslandIconButton(
+                    icon: "speaker.wave.2.fill",
+                    iconSize: 10,
+                    iconWeight: .medium,
+                    foregroundColor: controller.activeHUD == .volume ? .white : MacPulseColors.textSecondary,
+                    backgroundColor: controller.activeHUD == .volume ? Color.white.opacity(0.20) : Color.white.opacity(0.08),
+                    tooltip: "Sound Volume"
+                ) {
+                    withAnimation(MacPulseAnimations.islandSpring) {
+                        controller.toggleHUD(.volume)
                     }
                 }
                 
@@ -749,13 +805,8 @@ public struct HallmarkDynamicIslandRootView: View {
             
             // Dynamic Body Section (Content Canvas)
             ZStack {
-                if controller.showCameraMirror {
-                    DynamicIslandMirrorView()
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                } else {
-                    currentTabView
-                        .transition(.opacity)
-                }
+                currentTabView
+                    .transition(.opacity)
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 10)

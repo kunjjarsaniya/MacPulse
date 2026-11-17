@@ -144,14 +144,17 @@ public enum MacPulseRadius {
     
     // Curved Notch Geometry (Apple-Engineered Continuity)
     public static let topEarCompact: CGFloat = 8
+    public static let topEarHUD: CGFloat = 10
     public static let topEarExpanded: CGFloat = 12
     public static let bottomCornerCompact: CGFloat = 14
+    public static let bottomCornerHUD: CGFloat = 18
     public static let bottomCornerExpanded: CGFloat = 22
 }
 
 public enum MacPulseDimensions {
     public static let compactIslandSize = NSSize(width: 258, height: 28)
     public static let compactLiveActivitySize = NSSize(width: 280, height: 28)
+    public static let hudIslandSize = NSSize(width: 340, height: 78)
     public static let expandedIslandSize = NSSize(width: 560, height: 175)
     
     public static let contentHeight: CGFloat = 118
