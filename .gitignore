@@ -1,0 +1,31 @@
+# Xcode & Swift Package Manager
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# Build Output
+*.app/
+*.dSYM/
+*.dmg
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Backups & Temporary files
+*.swp
+*~
+*.bak
+.agents/
+skills-lock.json
+
+# Environment & Credentials
+.env
+.env.*
+!.env.example
