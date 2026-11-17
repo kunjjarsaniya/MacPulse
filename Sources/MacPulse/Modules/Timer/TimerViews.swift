@@ -40,6 +40,8 @@ public struct TimerCard: View {
                 
                 // Active Subview
                 switch timerService.activeTab {
+                case .reminder:
+                    ReminderView()
                 case .pomodoro:
                     PomodoroView()
                 case .countdown:
@@ -458,5 +460,131 @@ public struct StopwatchView: View {
         let sec = totalSec % 60
         let min = totalSec / 60
         return String(format: "+%02d:%02d.%02d", min, sec, centis)
+    }
+}
+
+// MARK: - 4. Reminder / Repeating Interval View
+public struct ReminderView: View {
+    @ObservedObject private var timer = TimerService.shared
+    
+    private let presets: [(label: String, sec: TimeInterval)] = [
+        ("1m", 60),
+        ("2m", 120),
+        ("5m", 300),
+        ("10m", 600),
+        ("15m", 900),
+        ("30m", 1800),
+        ("45m", 2700),
+        ("60m", 3600)
+    ]
+    
+    public var body: some View {
+        VStack(spacing: 20) {
+            // Preset Pills
+            HStack(spacing: 8) {
+                ForEach(presets, id: \.label) { p in
+                    let isCurrent = timer.reminderInterval == p.sec
+                    Button {
+                        timer.setReminderInterval(seconds: p.sec)
+                    } label: {
+                        Text(p.label)
+                            .font(.system(size: 11, weight: isCurrent ? .bold : .medium))
+                            .foregroundColor(isCurrent ? .white : MacPulseTheme.textSecondary)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isCurrent ? MacPulseTheme.accentPurple.opacity(0.35) : Color.white.opacity(0.04))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(isCurrent ? MacPulseTheme.accentPurple : MacPulseTheme.borderSubtle, lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+            
+            // Big Display & Progress
+            HStack(spacing: 40) {
+                let progress = timer.reminderInterval > 0 ? (timer.reminderInterval - timer.reminderRemaining) / timer.reminderInterval : 0.0
+                
+                ZStack {
+                    CircularProgressView(
+                        progress: progress,
+                        lineWidth: 12,
+                        gradient: LinearGradient(colors: [Color.purple, Color.blue], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        size: 140
+                    )
+                    
+                    VStack(spacing: 2) {
+                        Text(formatCountdown(timer.reminderRemaining))
+                            .font(.system(size: 32, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                        
+                        Text(timer.reminderState == .running ? (timer.reminderCycleCount > 0 ? "CYCLE #\(timer.reminderCycleCount + 1)" : "REPEATING") : (timer.reminderState == .paused ? "PAUSED" : "READY"))
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(MacPulseTheme.accentPurple)
+                    }
+                }
+                
+                // Controls
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 12) {
+                        if timer.reminderState == .running {
+                            ModernActionButton(
+                                title: "Pause",
+                                icon: "pause.fill",
+                                gradient: LinearGradient(colors: [Color.orange, Color.red], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            ) {
+                                timer.pauseReminder()
+                            }
+                        } else {
+                            ModernActionButton(
+                                title: timer.reminderState == .paused ? "Resume" : "Start Repeating",
+                                icon: "play.fill",
+                                gradient: LinearGradient(colors: [Color.purple, Color.blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            ) {
+                                timer.startReminder()
+                            }
+                        }
+                        
+                        Button {
+                            timer.stopReminder()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "stop.fill")
+                                Text("Stop")
+                            }
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(MacPulseTheme.textSecondary)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 14)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    Text("Repeats every \(formatCountdown(timer.reminderInterval)) until you click Stop")
+                        .font(.system(size: 11))
+                        .foregroundColor(MacPulseTheme.textTertiary)
+                }
+                
+                Spacer()
+            }
+            .padding(.vertical, 6)
+        }
+    }
+    
+    private func formatCountdown(_ seconds: TimeInterval) -> String {
+        let total = Int(max(0, seconds))
+        let hrs = total / 3600
+        let min = (total % 3600) / 60
+        let sec = total % 60
+        if hrs > 0 {
+            return String(format: "%02d:%02d:%02d", hrs, min, sec)
+        }
+        return String(format: "%02d:%02d", min, sec)
     }
 }

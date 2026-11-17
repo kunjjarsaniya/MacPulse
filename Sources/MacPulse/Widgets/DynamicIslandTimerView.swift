@@ -1,17 +1,19 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Dynamic Island Timer View (Apple-Grade Countdown, Focus & Stopwatch)
+// MARK: - Dynamic Island Timer View (Apple-Grade Repeating Reminder, Countdown, Focus & Stopwatch)
 
 public struct DynamicIslandTimerView: View {
     @ObservedObject private var timer = TimerService.shared
     @ObservedObject private var controller = DynamicIslandController.shared
+    @State private var reminderMinutes: Int = 5
     @State private var selectedMinutes: Int = 25
     
     public init() {}
     
     private var isRunning: Bool {
         switch timer.activeTab {
+        case .reminder: return timer.reminderState == .running
         case .countdown: return timer.countdownState == .running
         case .pomodoro: return timer.pomodoroState == .running
         case .stopwatch: return timer.stopwatchState == .running
@@ -20,6 +22,7 @@ public struct DynamicIslandTimerView: View {
     
     private var isPaused: Bool {
         switch timer.activeTab {
+        case .reminder: return timer.reminderState == .paused
         case .countdown: return timer.countdownState == .paused
         case .pomodoro: return timer.pomodoroState == .paused
         case .stopwatch: return timer.stopwatchState == .paused
@@ -28,6 +31,14 @@ public struct DynamicIslandTimerView: View {
     
     private var displayTimeString: String {
         switch timer.activeTab {
+        case .reminder:
+            if isRunning || isPaused {
+                let mins = Int(timer.reminderRemaining) / 60
+                let secs = Int(timer.reminderRemaining) % 60
+                return String(format: "%02d:%02d", mins, secs)
+            }
+            return String(format: "%02d:00", reminderMinutes)
+            
         case .countdown:
             if isRunning || isPaused {
                 let mins = Int(timer.countdownRemaining) / 60
@@ -52,6 +63,12 @@ public struct DynamicIslandTimerView: View {
     
     private var progressRatio: Double {
         switch timer.activeTab {
+        case .reminder:
+            guard timer.reminderInterval > 0 else { return 0 }
+            if isRunning || isPaused {
+                return max(0, min(1.0, 1.0 - (timer.reminderRemaining / timer.reminderInterval)))
+            }
+            return 0
         case .countdown:
             guard timer.countdownDuration > 0 else { return 0 }
             if isRunning || isPaused {
@@ -69,7 +86,23 @@ public struct DynamicIslandTimerView: View {
         }
     }
     
-    // Custom minute stepper adjustment
+    // Reminder minute stepper adjustment
+    private func adjustReminderMinutes(by delta: Int) {
+        guard !isRunning else { return }
+        let newMins = max(1, min(120, reminderMinutes + delta))
+        reminderMinutes = newMins
+        timer.setReminderInterval(seconds: TimeInterval(newMins * 60))
+        HapticFeedback.playSoft()
+    }
+    
+    private func setReminderPresetMinutes(_ mins: Int) {
+        guard !isRunning else { return }
+        reminderMinutes = mins
+        timer.setReminderInterval(seconds: TimeInterval(mins * 60))
+        HapticFeedback.playSoft()
+    }
+    
+    // Countdown minute stepper adjustment
     private func adjustMinutes(by delta: Int) {
         guard !isRunning else { return }
         let newMins = max(1, min(120, selectedMinutes + delta))
@@ -88,6 +121,15 @@ public struct DynamicIslandTimerView: View {
     private func toggleStartPause() {
         HapticFeedback.playSoft()
         switch timer.activeTab {
+        case .reminder:
+            if timer.reminderState == .running {
+                timer.pauseReminder()
+            } else {
+                if timer.reminderInterval != TimeInterval(reminderMinutes * 60) && timer.reminderState == .idle {
+                    timer.setReminderInterval(seconds: TimeInterval(reminderMinutes * 60))
+                }
+                timer.startReminder()
+            }
         case .countdown:
             if timer.countdownState == .running {
                 timer.pauseCountdown()
@@ -115,6 +157,9 @@ public struct DynamicIslandTimerView: View {
     private func resetTimer() {
         HapticFeedback.playSoft()
         switch timer.activeTab {
+        case .reminder:
+            timer.resetReminder()
+            timer.setReminderInterval(seconds: TimeInterval(reminderMinutes * 60))
         case .countdown:
             timer.resetCountdown()
             timer.setCountdownPreset(seconds: TimeInterval(selectedMinutes * 60))
@@ -148,7 +193,7 @@ public struct DynamicIslandTimerView: View {
                     .frame(width: 1)
                     .padding(.vertical, 4)
                 
-                // Right Column: Start / Pause & Reset Action Buttons
+                // Right Column: Start / Pause & Reset/Stop Action Buttons
                 actionColumn
                     .frame(width: 88)
             }
@@ -157,7 +202,9 @@ public struct DynamicIslandTimerView: View {
             .frame(height: MacPulseDimensions.contentHeight)
         }
         .onAppear {
-            if timer.activeTab == .countdown && timer.countdownState == .idle {
+            if timer.activeTab == .reminder && timer.reminderState == .idle {
+                timer.setReminderInterval(seconds: TimeInterval(reminderMinutes * 60))
+            } else if timer.activeTab == .countdown && timer.countdownState == .idle {
                 timer.setCountdownPreset(seconds: TimeInterval(selectedMinutes * 60))
             }
         }
@@ -165,57 +212,67 @@ public struct DynamicIslandTimerView: View {
     
     // MARK: - 1. Left Mode Switcher Column
     private var modeColumn: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             ForEach(TimerTab.allCases, id: \.self) { tab in
                 Button {
                     timer.activeTab = tab
                     HapticFeedback.playSoft()
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 9.5, weight: .semibold))
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .frame(width: 12)
                         Text(tab.rawValue)
-                            .font(.system(size: 10.5, weight: timer.activeTab == tab ? .semibold : .medium, design: .rounded))
+                            .font(.system(size: 10, weight: timer.activeTab == tab ? .semibold : .medium, design: .rounded))
                     }
                     .foregroundColor(timer.activeTab == tab ? .white : Color.white.opacity(0.45))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
                             .fill(timer.activeTab == tab ? Color.white.opacity(0.12) : Color.clear)
                     )
                 }
                 .buttonStyle(.plain)
             }
             
-            Spacer(minLength: 2)
+            Spacer(minLength: 1)
             
             // Sub-status indicator
             Group {
-                if timer.activeTab == .pomodoro {
+                if timer.activeTab == .reminder {
                     HStack(spacing: 3) {
-                        Image(systemName: timer.pomodoroMode == .focus ? "brain.head.profile" : "cup.and.saucer.fill")
-                            .font(.system(size: 8))
-                        Text(timer.pomodoroMode == .focus ? "Focus (\(timer.completedPomodoros))" : "Break")
-                            .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                        Image(systemName: "clock.arrow.2.circlepath")
+                            .font(.system(size: 7.5))
+                        Text(timer.reminderCycleCount > 0 ? "Cycle #\(timer.reminderCycleCount + 1)" : "Every \(reminderMinutes)m")
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
                     }
                     .foregroundColor(Color.white.opacity(0.40))
-                    .padding(.leading, 7)
+                    .padding(.leading, 6)
                 } else if timer.activeTab == .countdown {
                     HStack(spacing: 3) {
-                        Image(systemName: "bell.fill")
-                            .font(.system(size: 8))
-                        Text("Alert on finish")
-                            .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                        Image(systemName: timer.countdownRepeating ? "repeat" : "bell.fill")
+                            .font(.system(size: 7.5))
+                        Text(timer.countdownRepeating ? "Loop every \(selectedMinutes)m" : "Alert on finish")
+                            .font(.system(size: 8, weight: .medium, design: .rounded))
                     }
                     .foregroundColor(Color.white.opacity(0.40))
-                    .padding(.leading, 7)
+                    .padding(.leading, 6)
+                } else if timer.activeTab == .pomodoro {
+                    HStack(spacing: 3) {
+                        Image(systemName: timer.pomodoroMode == .focus ? "brain.head.profile" : "cup.and.saucer.fill")
+                            .font(.system(size: 7.5))
+                        Text(timer.pomodoroMode == .focus ? "Focus (\(timer.completedPomodoros))" : "Break")
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(Color.white.opacity(0.40))
+                    .padding(.leading, 6)
                 } else {
                     Text("\(timer.stopwatchLaps.count) Laps")
-                        .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                        .font(.system(size: 8, weight: .medium, design: .rounded))
                         .foregroundColor(Color.white.opacity(0.40))
-                        .padding(.leading, 7)
+                        .padding(.leading, 6)
                 }
             }
         }
@@ -253,9 +310,46 @@ public struct DynamicIslandTimerView: View {
             .frame(height: 3)
             .padding(.horizontal, 8)
             
-            // Stepper & Presets (Countdown or Pomodoro Mode)
-            if timer.activeTab == .countdown {
-                HStack(spacing: 4) {
+            // Stepper & Presets (Reminder, Countdown or Pomodoro Mode)
+            if timer.activeTab == .reminder {
+                HStack(spacing: 3) {
+                    // Minus 1 Minute
+                    Button {
+                        adjustReminderMinutes(by: -1)
+                    } label: {
+                        Image(systemName: "minus")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(isRunning ? Color.white.opacity(0.2) : Color.white.opacity(0.7))
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isRunning)
+                    
+                    // Quick Presets
+                    reminderPresetPill("1m", 1)
+                    reminderPresetPill("2m", 2)
+                    reminderPresetPill("5m", 5)
+                    reminderPresetPill("10m", 10)
+                    reminderPresetPill("15m", 15)
+                    reminderPresetPill("30m", 30)
+                    
+                    // Plus 1 Minute
+                    Button {
+                        adjustReminderMinutes(by: 1)
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(isRunning ? Color.white.opacity(0.2) : Color.white.opacity(0.7))
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isRunning)
+                }
+                .padding(.top, 2)
+            } else if timer.activeTab == .countdown {
+                HStack(spacing: 3) {
                     // Minus 1 Minute
                     Button {
                         adjustMinutes(by: -1)
@@ -289,6 +383,21 @@ public struct DynamicIslandTimerView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isRunning)
+                    
+                    // Auto-Repeat Toggle
+                    Button {
+                        timer.countdownRepeating.toggle()
+                        HapticFeedback.playSoft()
+                    } label: {
+                        Image(systemName: "repeat")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(timer.countdownRepeating ? .white : Color.white.opacity(0.35))
+                            .frame(width: 18, height: 18)
+                            .background(
+                                Circle().fill(timer.countdownRepeating ? Color.white.opacity(0.22) : Color.white.opacity(0.06))
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.top, 2)
             } else if timer.activeTab == .pomodoro {
@@ -324,7 +433,7 @@ public struct DynamicIslandTimerView: View {
             Button {
                 toggleStartPause()
             } label: {
-                Text(isRunning ? "Pause" : "Start")
+                Text(isRunning ? "Pause" : (isPaused ? "Resume" : "Start"))
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundColor(isRunning ? .white : .black)
                     .frame(maxWidth: .infinity)
@@ -337,7 +446,19 @@ public struct DynamicIslandTimerView: View {
             
             // Secondary Actions
             HStack(spacing: 8) {
-                if timer.activeTab == .stopwatch && isRunning {
+                if (timer.activeTab == .reminder || (timer.activeTab == .countdown && timer.countdownRepeating)) && (isRunning || isPaused) {
+                    Button("Stop") {
+                        if timer.activeTab == .reminder {
+                            timer.stopReminder()
+                        } else {
+                            timer.resetCountdown()
+                        }
+                        HapticFeedback.playSoft()
+                    }
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.4))
+                    .buttonStyle(.plain)
+                } else if timer.activeTab == .stopwatch && isRunning {
                     Button("Lap") {
                         timer.recordLap()
                         HapticFeedback.playSoft()
@@ -345,16 +466,40 @@ public struct DynamicIslandTimerView: View {
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.70))
                     .buttonStyle(.plain)
+                } else {
+                    Button("Reset") {
+                        resetTimer()
+                    }
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(MacPulseColors.textTertiary)
+                    .buttonStyle(.plain)
                 }
-                
-                Button("Reset") {
-                    resetTimer()
-                }
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundColor(MacPulseColors.textTertiary)
-                .buttonStyle(.plain)
             }
         }
+    }
+    
+    // Reminder Preset Pill
+    private func reminderPresetPill(_ label: String, _ mins: Int) -> some View {
+        Button {
+            setReminderPresetMinutes(mins)
+        } label: {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundColor(reminderMinutes == mins && !isRunning ? .white : Color.white.opacity(0.45))
+                .padding(.horizontal, 5.5)
+                .padding(.vertical, 2.5)
+                .background(
+                    Capsule().fill(
+                        reminderMinutes == mins && !isRunning
+                            ? Color.white.opacity(0.22)
+                            : Color.white.opacity(0.06)
+                    )
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isRunning)
     }
     
     // Quick Preset Pill
@@ -364,8 +509,10 @@ public struct DynamicIslandTimerView: View {
         } label: {
             Text(label)
                 .font(.system(size: 9, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundColor(selectedMinutes == mins && !isRunning ? .white : Color.white.opacity(0.45))
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 5.5)
                 .padding(.vertical, 2.5)
                 .background(
                     Capsule().fill(

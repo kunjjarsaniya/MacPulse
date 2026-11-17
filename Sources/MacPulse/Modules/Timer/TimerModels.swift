@@ -3,17 +3,19 @@ import Foundation
 // MARK: - Timer Models
 
 public enum TimerTab: String, CaseIterable, CustomStringConvertible {
-    case stopwatch = "Stopwatch"
+    case reminder = "Reminder"
     case countdown = "Countdown"
     case pomodoro = "Pomodoro"
+    case stopwatch = "Stopwatch"
     
     public var description: String { self.rawValue }
     
     public var icon: String {
         switch self {
-        case .stopwatch: return "stopwatch"
+        case .reminder: return "clock.arrow.2.circlepath"
         case .countdown: return "timer"
         case .pomodoro: return "brain.head.profile"
+        case .stopwatch: return "stopwatch"
         }
     }
 }

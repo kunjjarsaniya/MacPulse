@@ -389,6 +389,7 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleTabStats), name: NSNotification.Name("com.macpulse.tab.stats"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.home"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabTimer), name: NSNotification.Name("com.macpulse.tab.timer"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleTimerReminder), name: NSNotification.Name("com.macpulse.timer.reminder"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabClipboard), name: NSNotification.Name("com.macpulse.tab.clipboard"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabNotes), name: NSNotification.Name("com.macpulse.tab.notes"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleToggleMirror), name: NSNotification.Name("com.macpulse.toggleMirror"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -397,6 +398,7 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleToggleVolumeHUD), name: NSNotification.Name("com.macpulse.toggleVolumeHUD"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleToggleBrightnessHUD), name: NSNotification.Name("com.macpulse.toggleBrightnessHUD"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTestAlert), name: NSNotification.Name("com.macpulse.testAlert"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleTestReminderAlert), name: NSNotification.Name("com.macpulse.testReminderAlert"), object: nil, suspensionBehavior: .deliverImmediately)
         
         // Backward-compatible notification handlers
         center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.live"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -426,6 +428,15 @@ public final class DynamicIslandController: ObservableObject {
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
+            self?.expand(to: .timer)
+        }
+    }
+    @objc private func handleTimerReminder() {
+        DispatchQueue.main.async { [weak self] in
+            self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
+            TimerService.shared.activeTab = .reminder
             self?.expand(to: .timer)
         }
     }
@@ -479,6 +490,18 @@ public final class DynamicIslandController: ObservableObject {
         ) {
             TimerService.shared.resetCountdown()
             TimerService.shared.startCountdown()
+        }
+    }
+    
+    @objc private func handleTestReminderAlert() {
+        triggerAlert(
+            icon: "clock.arrow.2.circlepath",
+            title: "Reminder Alert! ⏰",
+            subtitle: "5m interval (Cycle #1) • Next in 5m",
+            actionTitle: "Stop",
+            soundName: "Glass"
+        ) {
+            TimerService.shared.stopReminder()
         }
     }
     
