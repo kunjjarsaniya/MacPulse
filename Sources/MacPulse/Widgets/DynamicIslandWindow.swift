@@ -9,6 +9,13 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
     }
+    
+    override func scrollWheel(with event: NSEvent) {
+        if DynamicIslandController.shared.handleScrollWheelEvent(event) {
+            return
+        }
+        super.scrollWheel(with: event)
+    }
 }
 
 // MARK: - Authentic Apple Notch & Island Shape (Curved Ear Layout Design)
@@ -82,21 +89,28 @@ final class DynamicIslandPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 }
 
+public enum TabTransitionDirection {
+    case forward
+    case backward
+}
+
 public enum MacPulseShelfTab: String, CaseIterable, Identifiable {
-    case home = "Home"
-    case shelf = "Shelf"
     case stats = "Stats"
+    case home = "Home"
     case timer = "Timer"
     case clipboard = "Clipboard"
     case notes = "Notes"
     
     public var id: String { rawValue }
     
+    public var index: Int {
+        Self.allCases.firstIndex(of: self) ?? 0
+    }
+    
     public var icon: String {
         switch self {
-        case .home: return "house.fill"
-        case .shelf: return "tray.fill"
         case .stats: return "chart.xyaxis.line"
+        case .home: return "house.fill"
         case .timer: return "timer"
         case .clipboard: return "doc.on.clipboard"
         case .notes: return "note.text"
@@ -118,12 +132,21 @@ public final class DynamicIslandController: ObservableObject {
     private var window: DynamicIslandPanel?
     @Published public var isExpanded: Bool = false
     @Published public var activeTab: MacPulseShelfTab = .home
+    @Published public var navigationDirection: TabTransitionDirection = .forward
     @Published public var showToast: Bool = false
     @Published public var toastMessage: String = ""
     @Published public var toastSubtitle: String = ""
     @Published public var activeLiveActivityText: String? = nil
     @Published public var activeHUD: DynamicIslandHUDType? = nil
     @Published public var showCameraMirror: Bool = false
+    
+    // Gesture-Based Navigation State
+    private var accumulatedDeltaX: CGFloat = 0
+    private var isSwipeLocked: Bool = false
+    private var lastSwipeTimestamp: TimeInterval = 0
+    private let swipeThreshold: CGFloat = 16.0
+    private let swipeCooldown: TimeInterval = 0.32
+    private var localScrollMonitor: Any?
     
     private var liveActivityTimer: DispatchWorkItem?
     private var scrollEventMonitor: Any?
@@ -178,15 +201,125 @@ public final class DynamicIslandController: ObservableObject {
         scrollEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
             guard let self = self, let screen = NSScreen.main else { return }
             let mouseLoc = NSEvent.mouseLocation
-            guard mouseLoc.y >= (screen.frame.maxY - 45) else { return }
             
-            let deltaY = event.scrollingDeltaY
-            if deltaY < -6 && !self.isExpanded {
-                self.expand()
-            } else if deltaY > 6 && self.isExpanded {
-                self.collapse()
+            // If collapsed: pull down gesture near top screen edge expands the island
+            if !self.isExpanded {
+                guard mouseLoc.y >= (screen.frame.maxY - 45) else { return }
+                if event.scrollingDeltaY < -6 {
+                    self.expand()
+                }
+                return
+            }
+            
+            // If expanded: check if cursor is over the dynamic island window for horizontal swipe
+            if let win = self.window, win.frame.contains(mouseLoc) {
+                _ = self.handleScrollWheelEvent(event)
             }
         }
+    }
+    
+    // MARK: - Gesture-Based Tab Navigation Engine
+    
+    public func selectNextTab() {
+        guard isExpanded, activeHUD == nil, !showCameraMirror else { return }
+        let all = MacPulseShelfTab.allCases
+        guard let currentIdx = all.firstIndex(of: activeTab), currentIdx < all.count - 1 else { return }
+        navigationDirection = .forward
+        withAnimation(MacPulseAnimations.islandSpring) {
+            activeTab = all[currentIdx + 1]
+        }
+        HapticFeedback.playSoft()
+    }
+    
+    public func selectPreviousTab() {
+        guard isExpanded, activeHUD == nil, !showCameraMirror else { return }
+        let all = MacPulseShelfTab.allCases
+        guard let currentIdx = all.firstIndex(of: activeTab), currentIdx > 0 else { return }
+        navigationDirection = .backward
+        withAnimation(MacPulseAnimations.islandSpring) {
+            activeTab = all[currentIdx - 1]
+        }
+        HapticFeedback.playSoft()
+    }
+    
+    public func selectTab(_ tab: MacPulseShelfTab) {
+        guard activeTab != tab else { return }
+        navigationDirection = tab.index > activeTab.index ? .forward : .backward
+        withAnimation(MacPulseAnimations.islandSpring) {
+            activeTab = tab
+        }
+        HapticFeedback.playSoft()
+    }
+    
+    public func handleScrollWheelEvent(_ event: NSEvent) -> Bool {
+        // Only navigate tabs when expanded and not in HUD or mirror mode
+        guard isExpanded, activeHUD == nil, !showCameraMirror else { return false }
+        
+        let now = Date().timeIntervalSince1970
+        
+        // Reset accumulator and lock when gesture begins, ends, or is cancelled
+        if event.phase == .began || event.phase == .ended || event.phase == .cancelled {
+            accumulatedDeltaX = 0
+            isSwipeLocked = false
+            if event.phase == .ended || event.phase == .cancelled {
+                return false
+            }
+        }
+        
+        // Ignore momentum phase to prevent multiple tab switches from a single flick
+        guard event.momentumPhase.isEmpty else {
+            return false
+        }
+        
+        // Respect cooldown and lock
+        guard !isSwipeLocked, (now - lastSwipeTimestamp) > swipeCooldown else {
+            return false
+        }
+        
+        let deltaX = event.scrollingDeltaX
+        let deltaY = event.scrollingDeltaY
+        
+        // Vertical scrolling inside views MUST NOT navigate tabs
+        guard abs(deltaX) > abs(deltaY) * 1.3 else {
+            return false
+        }
+        
+        // For non-precise mouse wheels (e.g. discrete tilt wheel ticks)
+        if !event.hasPreciseScrollingDeltas {
+            if deltaX < -0.4 {
+                lastSwipeTimestamp = now
+                isSwipeLocked = true
+                selectNextTab()
+                return true
+            } else if deltaX > 0.4 {
+                lastSwipeTimestamp = now
+                isSwipeLocked = true
+                selectPreviousTab()
+                return true
+            }
+            return false
+        }
+        
+        // For trackpad precise gestures, accumulate deltaX
+        accumulatedDeltaX += deltaX
+        
+        if accumulatedDeltaX < -swipeThreshold {
+            // Swiped Left (fingers move right-to-left) -> Move to Next Tab
+            accumulatedDeltaX = 0
+            isSwipeLocked = true
+            lastSwipeTimestamp = now
+            selectNextTab()
+            return true
+        } else if accumulatedDeltaX > swipeThreshold {
+            // Swiped Right (fingers move left-to-right) -> Move to Previous Tab
+            accumulatedDeltaX = 0
+            isSwipeLocked = true
+            lastSwipeTimestamp = now
+            selectPreviousTab()
+            return true
+        }
+        
+        return false
     }
     
     private func setupDistributedNotifications() {
@@ -222,9 +355,8 @@ public final class DynamicIslandController: ObservableObject {
         )
         
         // Tab notifications
-        center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.home"), object: nil, suspensionBehavior: .deliverImmediately)
-        center.addObserver(self, selector: #selector(handleTabShelf), name: NSNotification.Name("com.macpulse.tab.shelf"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabStats), name: NSNotification.Name("com.macpulse.tab.stats"), object: nil, suspensionBehavior: .deliverImmediately)
+        center.addObserver(self, selector: #selector(handleTabHome), name: NSNotification.Name("com.macpulse.tab.home"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabTimer), name: NSNotification.Name("com.macpulse.tab.timer"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabClipboard), name: NSNotification.Name("com.macpulse.tab.clipboard"), object: nil, suspensionBehavior: .deliverImmediately)
         center.addObserver(self, selector: #selector(handleTabNotes), name: NSNotification.Name("com.macpulse.tab.notes"), object: nil, suspensionBehavior: .deliverImmediately)
@@ -241,30 +373,21 @@ public final class DynamicIslandController: ObservableObject {
         center.addObserver(self, selector: #selector(handleTabStats), name: NSNotification.Name("com.macpulse.tab.history"), object: nil, suspensionBehavior: .deliverImmediately)
     }
     
-    @objc private func handleTabHome() {
-        DispatchQueue.main.async { [weak self] in
-            self?.activeHUD = nil
-            self?.showCameraMirror = false
-            CameraMirrorManager.shared.stop()
-            self?.activeTab = .home
-            self?.expand()
-        }
-    }
-    @objc private func handleTabShelf() {
-        DispatchQueue.main.async { [weak self] in
-            self?.activeHUD = nil
-            self?.showCameraMirror = false
-            CameraMirrorManager.shared.stop()
-            self?.activeTab = .shelf
-            self?.expand()
-        }
-    }
     @objc private func handleTabStats() {
         DispatchQueue.main.async { [weak self] in
             self?.activeHUD = nil
             self?.showCameraMirror = false
             CameraMirrorManager.shared.stop()
-            self?.activeTab = .stats
+            self?.selectTab(.stats)
+            self?.expand()
+        }
+    }
+    @objc private func handleTabHome() {
+        DispatchQueue.main.async { [weak self] in
+            self?.activeHUD = nil
+            self?.showCameraMirror = false
+            CameraMirrorManager.shared.stop()
+            self?.selectTab(.home)
             self?.expand()
         }
     }
@@ -760,10 +883,7 @@ public struct HallmarkDynamicIslandRootView: View {
                 HStack(spacing: MacPulseSpacing.xxs) {
                     ForEach(MacPulseShelfTab.allCases) { tab in
                         Button {
-                            withAnimation(MacPulseAnimations.islandSpring) {
-                                controller.activeTab = tab
-                            }
-                            HapticFeedback.playSoft()
+                            controller.selectTab(tab)
                         } label: {
                             HStack(spacing: MacPulseSpacing.xs) {
                                 Image(systemName: tab.icon)
@@ -846,9 +966,30 @@ public struct HallmarkDynamicIslandRootView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 } else {
                     currentTabView
-                        .transition(.opacity)
+                        .id(controller.activeTab)
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: controller.navigationDirection == .forward ? .trailing : .leading).combined(with: .opacity),
+                                removal: .move(edge: controller.navigationDirection == .forward ? .leading : .trailing).combined(with: .opacity)
+                            )
+                        )
                 }
             }
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { gesture in
+                        guard controller.isExpanded, controller.activeHUD == nil, !controller.showCameraMirror else { return }
+                        let transX = gesture.translation.width
+                        let transY = gesture.translation.height
+                        guard abs(transX) > abs(transY) * 1.35 else { return }
+                        if transX < -30 {
+                            controller.selectNextTab()
+                        } else if transX > 30 {
+                            controller.selectPreviousTab()
+                        }
+                    }
+            )
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
@@ -857,12 +998,10 @@ public struct HallmarkDynamicIslandRootView: View {
     @ViewBuilder
     private var currentTabView: some View {
         switch controller.activeTab {
-        case .home:
-            DynamicIslandHomeView()
-        case .shelf:
-            DynamicIslandShelfView()
         case .stats:
             DynamicIslandStatsView()
+        case .home:
+            DynamicIslandHomeView()
         case .timer:
             DynamicIslandTimerView()
         case .clipboard:
