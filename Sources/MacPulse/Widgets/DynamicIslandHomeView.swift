@@ -18,9 +18,9 @@ public struct DynamicIslandHomeView: View {
     
     private var visualizerBarColor: Color {
         guard media.currentTrack.isPlaying else {
-            return Color.white.opacity(0.25)
+            return Color(hex: "#1DB954").opacity(0.35)
         }
-        return Color.white.opacity(0.85)
+        return Color(hex: "#1ED760")
     }
     
     private func visualizerBarHeight(at idx: Int) -> CGFloat {

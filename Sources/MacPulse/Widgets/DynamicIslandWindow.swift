@@ -791,8 +791,8 @@ public final class DynamicIslandController: ObservableObject {
         let newFrame = NSRect(origin: origin, size: targetSize)
         
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.28
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
+            context.duration = expanded ? 0.32 : 0.26
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.02, 0.25, 1.0)
             win.animator().setFrame(newFrame, display: true)
         }
     }
@@ -864,12 +864,13 @@ public struct HallmarkDynamicIslandRootView: View {
             topEar = MacPulseRadius.topEarHUD
             bottomRadius = MacPulseRadius.bottomCornerHUD
         } else if isExpanded {
-            topEar = MacPulseRadius.topEarExpanded
-            // Adaptive corner radii when dragging up to dismiss
+            // Adaptive corner radii during vertical swipe-to-dismiss gesture
             if dragOffsetY < 0 {
-                let factor = min(1.0, max(0.0, -dragOffsetY / 50.0))
+                let factor = min(1.0, max(0.0, -dragOffsetY / 60.0))
+                topEar = MacPulseRadius.topEarExpanded - (factor * (MacPulseRadius.topEarExpanded - MacPulseRadius.topEarCompact))
                 bottomRadius = MacPulseRadius.bottomCornerExpanded - (factor * (MacPulseRadius.bottomCornerExpanded - MacPulseRadius.bottomCornerCompact))
             } else {
+                topEar = MacPulseRadius.topEarExpanded
                 bottomRadius = MacPulseRadius.bottomCornerExpanded
             }
         } else {
@@ -879,14 +880,32 @@ public struct HallmarkDynamicIslandRootView: View {
         return NotchShape(topCornerRadius: topEar, bottomCornerRadius: bottomRadius)
     }
     
+    // Swipe-aware dynamic blur & dimming feedback during gesture
+    private var swipeAwareBackgroundOpacity: Double {
+        if isExpanded && dragOffsetY < 0 {
+            let progress = min(1.0, max(0.0, -dragOffsetY / 100.0))
+            return 0.96 - (progress * 0.20)
+        }
+        return 0.96
+    }
+    
+    private var swipeAwareBlurOpacity: Double {
+        if isExpanded && dragOffsetY < 0 {
+            let progress = min(1.0, max(0.0, -dragOffsetY / 100.0))
+            return 1.0 - (progress * 0.30)
+        }
+        return 1.0
+    }
+    
     public var body: some View {
         ZStack(alignment: .top) {
             // Unified Apple Curved Notch Chassis (Zero Drop Shadow, Curved Ears)
             currentNotchShape
-                .fill(MacPulseColors.islandBackground.opacity(0.96))
+                .fill(MacPulseColors.islandBackground.opacity(swipeAwareBackgroundOpacity))
                 .background(
                     VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
                         .clipShape(currentNotchShape)
+                        .opacity(swipeAwareBlurOpacity)
                 )
                 .overlay(
                     // Subtle Specular Hairline Rim Light (0.6pt)
@@ -905,19 +924,45 @@ public struct HallmarkDynamicIslandRootView: View {
                         )
                 )
             
-            // Content Switcher
+            // Content Switcher with Synchronized Content Interpolation
             if let alert = controller.activeAlert {
                 DynamicIslandAlertView(alert: alert)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.90, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 0.85, anchor: .top).combined(with: .opacity)
+                        )
+                    )
             } else if let hud = controller.activeHUD {
                 DynamicIslandHUDControlView(hudType: hud)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.92, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 0.85, anchor: .top).combined(with: .opacity)
+                        )
+                    )
             } else if isExpanded {
                 expandedShelfContent
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .offset(y: dragOffsetY < 0 ? dragOffsetY * 0.25 : 0)
+                    .opacity(dragOffsetY < 0 ? max(0.15, 1.0 + (dragOffsetY / 90.0)) : 1.0)
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.82, anchor: .top)
+                                .combined(with: .opacity)
+                                .combined(with: .offset(y: -10)),
+                            removal: .scale(scale: 0.80, anchor: .top)
+                                .combined(with: .opacity)
+                                .combined(with: .offset(y: -12))
+                        )
+                    )
             } else {
                 compactPillBar
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.88, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 0.75, anchor: .top).combined(with: .opacity)
+                        )
+                    )
             }
             
             // Floating Toast Notification Pill
@@ -982,7 +1027,7 @@ public struct HallmarkDynamicIslandRootView: View {
         .animation(MacPulseAnimations.islandSpring, value: controller.showToast)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeAlert)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeHUD)
-        .animation(MacPulseAnimations.islandSpring, value: isExpanded)
+        .animation(isExpanded ? MacPulseAnimations.dynamicIslandExpand : MacPulseAnimations.dynamicIslandCollapse, value: isExpanded)
         .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)
         .animation(MacPulseAnimations.snappySpring, value: isHovering)
         .onHover { hovering in
@@ -1004,22 +1049,31 @@ public struct HallmarkDynamicIslandRootView: View {
             if transY < 0 {
                 // Interactive vertical swipe-to-dismiss upward
                 isDragging = true
-                dragOffsetY = transY * 0.42
-                let squashY = max(0.88, 1.0 + (transY / 420.0))
-                let stretchX = min(1.08, 1.0 - (transY / 600.0))
+                let dragProgress = min(1.0, max(0.0, -transY / 140.0))
+                dragOffsetY = transY * 0.45
+                // Squash vertically, stretch horizontally (True iOS Jelly Physics)
+                let squashY = max(0.82, 1.0 - (dragProgress * 0.18))
+                let stretchX = min(1.08, 1.0 + (dragProgress * 0.08))
                 jellyScale = CGSize(width: stretchX, height: squashY)
+            } else if transY > 0 {
+                // Pull-down over-drag rubber-band
+                isDragging = true
+                dragOffsetY = transY * 0.25
+                let stretchY = min(1.10, 1.0 + (transY / 280.0))
+                let squashX = max(0.96, 1.0 - (transY / 500.0))
+                jellyScale = CGSize(width: squashX, height: stretchY)
             } else if abs(transX) > abs(transY) {
-                // Interactive horizontal drag feedback
+                // Horizontal drag feedback
                 isDragging = true
                 dragOffsetX = transX * 0.25
             }
         } else {
-            // Collapsed: pulling down to expand
+            // Collapsed: interactive pull-down-to-restore/expand
             if transY > 0 {
                 isDragging = true
-                dragOffsetY = transY * 0.42
-                let stretchY = min(1.22, 1.0 + (transY / 180.0))
-                let squashX = max(0.95, 1.0 - (transY / 500.0))
+                dragOffsetY = transY * 0.45
+                let stretchY = min(1.24, 1.0 + (transY / 150.0))
+                let squashX = max(0.94, 1.0 - (transY / 450.0))
                 jellyScale = CGSize(width: squashX, height: stretchY)
             }
         }
@@ -1034,13 +1088,13 @@ public struct HallmarkDynamicIslandRootView: View {
         if isExpanded {
             if abs(transY) > abs(transX) {
                 // Vertical Swipe Up to Dismiss
-                if transY < -26 || velocityY < -90 {
+                if transY < -24 || velocityY < -80 {
                     HapticFeedback.playSoft()
                     collapse()
                 }
             } else {
                 // Horizontal Drag: Tab Navigation & Scroll-to-Dismiss at Edges
-                if abs(transX) > 26 || abs(velocityX) > 80 {
+                if abs(transX) > 24 || abs(velocityX) > 75 {
                     let all = MacPulseShelfTab.allCases
                     if transX < 0 {
                         // Dragged Left -> Next tab, or dismiss if on last tab
@@ -1063,12 +1117,12 @@ public struct HallmarkDynamicIslandRootView: View {
             }
         } else {
             // Collapsed: Pull Down to Restore
-            if transY > 18 || velocityY > 80 {
+            if transY > 16 || velocityY > 75 {
                 expand()
             }
         }
         
-        // Elastic rebound to rest
+        // Elastic rebound to rest with authentic iOS jelly physics
         withAnimation(MacPulseAnimations.jellySpring) {
             dragOffsetY = 0
             dragOffsetX = 0
@@ -1316,10 +1370,21 @@ public struct HallmarkDynamicIslandRootView: View {
                         let transX = gesture.translation.width
                         let transY = gesture.translation.height
                         guard abs(transX) > abs(transY) * 1.35 else { return }
+                        let all = MacPulseShelfTab.allCases
                         if transX < -30 {
-                            controller.selectNextTab()
+                            if controller.activeTab == all.last {
+                                HapticFeedback.playSoft()
+                                controller.collapse()
+                            } else {
+                                controller.selectNextTab()
+                            }
                         } else if transX > 30 {
-                            controller.selectPreviousTab()
+                            if controller.activeTab == all.first {
+                                HapticFeedback.playSoft()
+                                controller.collapse()
+                            } else {
+                                controller.selectPreviousTab()
+                            }
                         }
                     }
             )
