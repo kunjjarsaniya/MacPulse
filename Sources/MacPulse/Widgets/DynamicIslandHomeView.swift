@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Dynamic Island Home View (Apple & NotchNook Minimalist Monochromatic Styling)
+// MARK: - Dynamic Island Home View (Dedicated Spotify & Minimalist Monochromatic Styling)
 
 public struct DynamicIslandHomeView: View {
     @ObservedObject private var media = MediaManager.shared
@@ -10,6 +10,7 @@ public struct DynamicIslandHomeView: View {
     @State private var isQuitHovered: Bool = false
     @State private var isTerminalHovered: Bool = false
     @State private var isMirrorHovered: Bool = false
+    @State private var isOpenSpotifyHovered: Bool = false
     
     public init() {}
     
@@ -28,8 +29,8 @@ public struct DynamicIslandHomeView: View {
     
     public var body: some View {
         HStack(spacing: 0) {
-            // 1. Left: Seamless Media Player Section
-            mediaPlayerSection
+            // 1. Left: Dedicated Spotify Player Section
+            spotifyPlayerSection
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             // 2. Center-Left: Subtle Hairline Divider
@@ -52,42 +53,44 @@ public struct DynamicIslandHomeView: View {
         .frame(height: MacPulseDimensions.contentHeight)
     }
     
-    // MARK: - 1. Media Player Section (No Nested Box, Seamless Black)
-    private var mediaPlayerSection: some View {
+    // MARK: - 1. Spotify Player Section (Seamless Black Chassis)
+    private var spotifyPlayerSection: some View {
         HStack(spacing: 14) {
-            albumArtView
-            trackDetailsAndControlsView
+            spotifyArtView
+            spotifyDetailsAndControlsView
         }
     }
     
-    // MARK: - Album Artwork with App Badge & Live Glow Effect
-    private var albumArtView: some View {
+    // MARK: - Artwork with Live Glow & Spotify Badge
+    private var spotifyArtView: some View {
         let isPlaying = media.currentTrack.isPlaying
         let artSize: CGFloat = 80
+        let hasActiveTrack = media.hasMedia && !media.currentTrack.title.isEmpty
         
         return ZStack(alignment: .bottomTrailing) {
             // Subtle ambient playing glow
-            if isPlaying {
+            if hasActiveTrack && isPlaying {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.white.opacity(0.14))
+                    .fill(Color(hex: "#1DB954").opacity(0.18))
                     .frame(width: artSize, height: artSize)
-                    .blur(radius: 6)
+                    .blur(radius: 8)
             }
             
-            // High-Res Artwork or Minimal Squircle Placeholder
+            // High-Res Artwork or Sleek Spotify Logo Placeholder
             Group {
-                if let art = media.artworkImage {
+                if hasActiveTrack, let art = media.artworkImage {
                     Image(nsImage: art)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: artSize, height: artSize)
                         .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 } else {
+                    // Dedicated Spotify Squircle Placeholder
                     ZStack {
                         RoundedRectangle(cornerRadius: 15, style: .continuous)
                             .fill(
                                 LinearGradient(
-                                    colors: [Color(hex: "#1E1E24"), Color(hex: "#121216")],
+                                    colors: [Color(hex: "#16161C"), Color(hex: "#0E0E12")],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -97,9 +100,8 @@ public struct DynamicIslandHomeView: View {
                                     .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
                             )
                         
-                        Image(systemName: media.currentTrack.playerSource == "Spotify" ? "waveform" : "music.note")
-                            .font(.system(size: 26, weight: .semibold))
-                            .foregroundColor(Color.white.opacity(0.35))
+                        // Centered Spotify Logo with Subtle Glow
+                        SpotifyLogoView(size: 34)
                     }
                     .frame(width: artSize, height: artSize)
                 }
@@ -107,45 +109,42 @@ public struct DynamicIslandHomeView: View {
             .scaleEffect(isPlaying ? 1.0 : 0.94)
             .animation(.spring(response: 0.32, dampingFraction: 0.74), value: isPlaying)
             
-            // App Source Badge (Spotify Green / Apple Music Red with Cutout Notch)
-            if media.hasMedia && !media.currentTrack.title.isEmpty {
-                if media.currentTrack.playerSource == "Spotify" {
-                    SpotifyBadgeView(size: 21)
-                        .offset(x: 2, y: 2)
-                } else {
-                    AppleMusicBadgeView(size: 21)
-                        .offset(x: 2, y: 2)
-                }
+            // Spotify Badge in Bottom-Right Corner (Only shown when artwork is active)
+            if hasActiveTrack {
+                SpotifyBadgeView(size: 21)
+                    .offset(x: 2, y: 2)
             }
         }
         .frame(width: artSize, height: artSize)
     }
     
-    // MARK: - Track Details & Controls (3-Tier Typography & Monochromatic Icons)
-    private var trackDetailsAndControlsView: some View {
-        VStack(alignment: .leading, spacing: 2.5) {
-            // Line 1: Track Title (Bold White)
-            Text(media.currentTrack.title.isEmpty ? "No Media Playing" : media.currentTrack.title)
-                .font(.system(size: 13.5, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .lineLimit(1)
-            
-            // Line 2: Album Title (Medium, Muted White)
-            Text(albumText)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(Color.white.opacity(0.70))
-                .lineLimit(1)
-            
-            // Line 3: Artist Name (Medium, Dim Gray)
-            Text(artistText)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundColor(Color.white.opacity(0.45))
-                .lineLimit(1)
-            
-            Spacer(minLength: 2)
-            
-            // Bottom Row: Monochromatic Playback Controls & Live Equalizer
-            if media.hasMedia && !media.currentTrack.title.isEmpty {
+    // MARK: - Track Details & Controls (Active Track or Dedicated Spotify Idle State)
+    private var spotifyDetailsAndControlsView: some View {
+        let hasActiveTrack = media.hasMedia && !media.currentTrack.title.isEmpty
+        
+        return VStack(alignment: .leading, spacing: 2.5) {
+            if hasActiveTrack {
+                // Line 1: Track Title (Bold White)
+                Text(media.currentTrack.title)
+                    .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                // Line 2: Album Title (Medium, Muted White)
+                Text(albumOrSubtitleText)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(Color.white.opacity(0.70))
+                    .lineLimit(1)
+                
+                // Line 3: Artist Name (Medium, Dim Gray)
+                Text(media.currentTrack.artist.isEmpty ? "Spotify" : media.currentTrack.artist)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(Color.white.opacity(0.45))
+                    .lineLimit(1)
+                
+                Spacer(minLength: 2)
+                
+                // Bottom Row: Monochromatic Playback Controls & Live Equalizer
                 HStack(spacing: 15) {
                     // Previous Track Button
                     Button {
@@ -160,7 +159,7 @@ public struct DynamicIslandHomeView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    // Play/Pause Button (Clean icon without circular background, matching reference)
+                    // Play/Pause Button (Clean icon without circular background)
                     Button {
                         media.playPause()
                         HapticFeedback.playSoft()
@@ -201,70 +200,73 @@ public struct DynamicIslandHomeView: View {
                     .padding(.trailing, 2)
                 }
             } else {
-                // Idle state: Quick launcher pills for Spotify & Music
-                HStack(spacing: 8) {
-                    Button {
-                        media.launchSpotify()
-                        controller.triggerToast(icon: "waveform", title: "Spotify", subtitle: "Opening Spotify")
-                    } label: {
-                        HStack(spacing: 5) {
-                            SpotifyMiniIcon(size: 12)
-                            Text("Spotify")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.08))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
-                        )
+                // Dedicated Spotify Idle State (When Spotify is not playing or closed)
+                // Line 1: Header
+                Text("Spotify")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                // Line 2: Status
+                Text("Not Playing")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(Color.white.opacity(0.65))
+                    .lineLimit(1)
+                
+                // Line 3: Caption
+                Text("Play your favorite music")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(Color.white.opacity(0.40))
+                    .lineLimit(1)
+                
+                Spacer(minLength: 2)
+                
+                // Single Sleek Spotify Capsule Button
+                Button {
+                    HapticFeedback.playSoft()
+                    media.launchSpotify()
+                    controller.triggerToast(icon: "waveform", title: "Spotify", subtitle: "Opening Spotify")
+                } label: {
+                    HStack(spacing: 6) {
+                        SpotifyMiniIcon(size: 14)
+                        
+                        Text("Open Spotify")
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
                     }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        media.launchMusic()
-                        controller.triggerToast(icon: "music.note", title: "Apple Music", subtitle: "Opening Music")
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 9.5, weight: .bold))
-                                .foregroundColor(Color(hex: "#FA2D48"))
-                            Text("Music")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.08))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .frame(height: 33)
+                    .background(
+                        Capsule()
+                            .fill(isOpenSpotifyHovered ? Color.white.opacity(0.16) : Color.white.opacity(0.10))
+                            .overlay(
+                                Capsule()
+                                    .stroke(
+                                        isOpenSpotifyHovered ? Color(hex: "#1DB954").opacity(0.55) : Color.white.opacity(0.12),
+                                        lineWidth: 0.6
+                                    )
+                            )
+                    )
                 }
+                .buttonStyle(.plain)
+                .onHover { isOpenSpotifyHovered = $0 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    private var albumText: String {
-        if !media.currentTrack.album.isEmpty {
-            return media.currentTrack.album
+    private var albumOrSubtitleText: String {
+        let title = media.currentTrack.title
+        let album = media.currentTrack.album
+        let artist = media.currentTrack.artist
+        
+        if !album.isEmpty && album.caseInsensitiveCompare(title) != .orderedSame {
+            return album
         }
-        if !media.currentTrack.artist.isEmpty {
-            return media.currentTrack.artist
+        if !artist.isEmpty {
+            return "Single • \(artist)"
         }
-        return "Launch Spotify or Music"
-    }
-    
-    private var artistText: String {
-        if !media.currentTrack.artist.isEmpty {
-            return media.currentTrack.artist
-        }
-        return "MacPulse Audio"
+        return "Spotify"
     }
     
     // MARK: - 3. Center Section: Two Stacked Capsule Buttons (Quit All Apps & Terminal)
@@ -418,38 +420,43 @@ public struct SpotifyBadgeView: View {
     }
 }
 
-// MARK: - Apple Music Badge View (Squircle with White Note & Cutout Notch)
+// MARK: - Spotify Logo View (For Idle Placeholder)
 
-public struct AppleMusicBadgeView: View {
+public struct SpotifyLogoView: View {
     public let size: CGFloat
     
-    public init(size: CGFloat = 21) {
+    public init(size: CGFloat = 34) {
         self.size = size
     }
     
     public var body: some View {
         ZStack {
-            // Apple Music Red Gradient Squircle
-            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+            // Ambient Green Glow
+            Circle()
+                .fill(Color(hex: "#1DB954").opacity(0.28))
+                .frame(width: size * 1.15, height: size * 1.15)
+                .blur(radius: 6)
+            
+            // Green Circle
+            Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: "#FA2D48"), Color(hex: "#D61633")],
+                        colors: [Color(hex: "#1ED760"), Color(hex: "#1DB954")],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                .frame(width: size, height: size)
             
-            // White Music Note
-            Image(systemName: "music.note")
-                .font(.system(size: size * 0.48, weight: .bold))
-                .foregroundColor(.white)
+            // 3 Dark Arcs
+            VStack(spacing: size * 0.08) {
+                SpotifyWaveArc(width: size * 0.54, strokeWidth: size * 0.095, archFactor: 0.26)
+                SpotifyWaveArc(width: size * 0.44, strokeWidth: size * 0.085, archFactor: 0.24)
+                SpotifyWaveArc(width: size * 0.34, strokeWidth: size * 0.075, archFactor: 0.22)
+            }
+            .rotationEffect(.degrees(-12))
+            .offset(x: size * 0.02, y: size * 0.02)
         }
-        .frame(width: size, height: size)
-        .overlay(
-            // Cutout notch stroke
-            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .stroke(Color.black, lineWidth: 1.8)
-        )
     }
 }
 

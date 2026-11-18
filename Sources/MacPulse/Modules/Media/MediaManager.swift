@@ -67,16 +67,7 @@ public final class MediaManager: ObservableObject {
     private func setupObservers() {
         let center = DistributedNotificationCenter.default()
         
-        center.addObserver(
-            forName: NSNotification.Name("com.apple.Music.playerInfo"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.refreshNowPlaying()
-            }
-        }
-        
+        // Listen exclusively to Spotify playback state changes
         center.addObserver(
             forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
             object: nil,
@@ -111,100 +102,31 @@ public final class MediaManager: ObservableObject {
         visualizerTimer = timer
     }
     
-    // MARK: - Fetch Now Playing via AppleScript
+    // MARK: - Fetch Now Playing via AppleScript (Spotify Only)
     public func refreshNowPlaying() {
         guard !isUpdating else { return }
         isUpdating = true
         
         Task.detached(priority: .userInitiated) {
             let scriptText = """
-            set isSpotifyRunning to false
-            set isMusicRunning to false
-
             if application "Spotify" is running then
-                set isSpotifyRunning to true
-            end if
-
-            if application "Music" is running then
-                set isMusicRunning to true
-            end if
-
-            if isSpotifyRunning then
                 tell application "Spotify"
-                    if player state is playing then
-                        try
-                            set trName to name of current track
-                            set trArtist to artist of current track
-                            set trAlbum to album of current track
-                            set trArt to artwork url of current track
-                            set trPos to player position
-                            set trDur to (duration of current track) / 1000
-                            return "playing:::" & trName & ":::" & trArtist & ":::" & trAlbum & ":::Spotify:::" & trArt & ":::" & trPos & ":::" & trDur
-                        on error
-                            return "playing:::::::Spotify::::0::0"
-                        end try
-                    end if
+                    try
+                        set pState to player state as string
+                        set trName to name of current track
+                        set trArtist to artist of current track
+                        set trAlbum to album of current track
+                        set trArt to artwork url of current track
+                        set trPos to player position
+                        set trDur to (duration of current track) / 1000
+                        return pState & ":::" & trName & ":::" & trArtist & ":::" & trAlbum & ":::Spotify:::" & trArt & ":::" & trPos & ":::" & trDur
+                    on error
+                        return "stopped:::::::Spotify::::0::0"
+                    end try
                 end tell
+            else
+                return "none"
             end if
-
-            if isMusicRunning then
-                tell application "Music"
-                    if player state is playing then
-                        try
-                            set trName to name of current track
-                            set trArtist to artist of current track
-                            set trAlbum to album of current track
-                            set trArt to ""
-                            set trPos to player position
-                            set trDur to duration of current track
-                            return "playing:::" & trName & ":::" & trArtist & ":::" & trAlbum & ":::Music:::" & trArt & ":::" & trPos & ":::" & trDur
-                        on error
-                            return "playing:::::::Music::::0::0"
-                        end try
-                    end if
-                end tell
-            end if
-
-            -- Neither is playing, check paused
-            if isSpotifyRunning then
-                tell application "Spotify"
-                    set pState to player state as string
-                    if pState is "paused" then
-                        try
-                            set trName to name of current track
-                            set trArtist to artist of current track
-                            set trAlbum to album of current track
-                            set trArt to artwork url of current track
-                            set trPos to player position
-                            set trDur to (duration of current track) / 1000
-                            return "paused:::" & trName & ":::" & trArtist & ":::" & trAlbum & ":::Spotify:::" & trArt & ":::" & trPos & ":::" & trDur
-                        on error
-                            return "stopped:::::::Spotify::::0::0"
-                        end try
-                    end if
-                end tell
-            end if
-
-            if isMusicRunning then
-                tell application "Music"
-                    set pState to player state as string
-                    if pState is "paused" then
-                        try
-                            set trName to name of current track
-                            set trArtist to artist of current track
-                            set trAlbum to album of current track
-                            set trArt to ""
-                            set trPos to player position
-                            set trDur to duration of current track
-                            return "paused:::" & trName & ":::" & trArtist & ":::" & trAlbum & ":::Music:::" & trArt & ":::" & trPos & ":::" & trDur
-                        on error
-                            return "stopped:::::::Music::::0::0"
-                        end try
-                    end if
-                end tell
-            end if
-
-            return "none"
             """
             
             var error: NSDictionary?
@@ -346,27 +268,13 @@ public final class MediaManager: ObservableObject {
     }
     
     private func executeCommand(_ cmd: String) {
-        let activeSource = currentTrack.playerSource
         Task.detached(priority: .userInitiated) {
-            let scriptText: String
-            if activeSource == "Spotify" {
-                scriptText = "tell application \"Spotify\" to \(cmd)"
-            } else if activeSource == "Music" {
-                scriptText = "tell application \"Music\" to \(cmd)"
-            } else {
-                scriptText = """
-                if application "Spotify" is running then
-                    tell application "Spotify" to \(cmd)
-                else if application "Music" is running then
-                    tell application "Music" to \(cmd)
-                end if
-                """
-            }
+            let scriptText = "tell application \"Spotify\" to \(cmd)"
             var err: NSDictionary?
             NSAppleScript(source: scriptText)?.executeAndReturnError(&err)
             
             // Immediate refresh
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(nanoseconds: 150_000_000)
             await MainActor.run { [weak self] in
                 self?.refreshNowPlaying()
             }
@@ -379,14 +287,6 @@ public final class MediaManager: ObservableObject {
             NSWorkspace.shared.open(url)
         } else {
             NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Spotify.app"))
-        }
-    }
-    
-    public func launchMusic() {
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Music") {
-            NSWorkspace.shared.open(url)
-        } else {
-            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Music.app"))
         }
     }
     
