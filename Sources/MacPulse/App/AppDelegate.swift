@@ -12,6 +12,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         
         setupMenuBar()
         
+        // Ensure automatic start when laptop turns on / logs in
+        let prefs = StorageManager.shared.loadPreferences()
+        if prefs.launchAtLogin {
+            _ = LaunchAtLoginManager.shared.setEnabled(true)
+        }
+        
         // Show exclusively the intelligent floating Dynamic Island
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             DynamicIslandController.shared.show()

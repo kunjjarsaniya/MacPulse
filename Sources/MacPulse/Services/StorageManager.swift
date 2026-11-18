@@ -26,7 +26,7 @@ public struct DailyNetworkUsageRecord: Codable, Identifiable {
 }
 
 public struct UserPreferences: Codable {
-    public var launchAtLogin: Bool = false
+    public var launchAtLogin: Bool = true
     public var showInMenuBar: Bool = true
     public var showFloatingWidget: Bool = false
     public var refreshInterval: Double = 1.0 // 1 second
