@@ -203,13 +203,14 @@ public final class MediaManager: ObservableObject {
         // 1. Check if direct Spotify artwork URL is present
         if let artUrlString = track.artworkUrl, let url = URL(string: artUrlString) {
             Task.detached(priority: .userInitiated) {
-                if let (imgData, _) = try? await URLSession.shared.data(from: url),
-                   let image = NSImage(data: imgData) {
+                if let (imgData, _) = try? await URLSession.shared.data(from: url) {
                     await MainActor.run { [weak self] in
-                        self?.artworkCache[cacheKey] = image
-                        if self?.currentTrack.title == track.title {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                self?.artworkImage = image
+                        if let image = NSImage(data: imgData) {
+                            self?.artworkCache[cacheKey] = image
+                            if self?.currentTrack.title == track.title {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    self?.artworkImage = image
+                                }
                             }
                         }
                     }
