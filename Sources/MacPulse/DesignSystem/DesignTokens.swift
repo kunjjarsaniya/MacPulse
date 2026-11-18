@@ -149,6 +149,12 @@ public enum MacPulseRadius {
     public static let bottomCornerCompact: CGFloat = 14
     public static let bottomCornerHUD: CGFloat = 18
     public static let bottomCornerExpanded: CGFloat = 22
+    
+    // Floating Capsule Geometry (for displays without hardware notch: topInset == 0)
+    public static let floatingRadiusCompact: CGFloat = 15
+    public static let floatingRadiusHUD: CGFloat = 22
+    public static let floatingRadiusAlert: CGFloat = 22
+    public static let floatingRadiusExpanded: CGFloat = 26
 }
 
 public enum MacPulseDimensions {
@@ -158,6 +164,14 @@ public enum MacPulseDimensions {
     public static let alertIslandSize = NSSize(width: 360, height: 72)
     public static let expandedIslandSize = NSSize(width: 560, height: 175)
     
+    // Floating Capsule Dimensions (when topInset == 0)
+    public static let floatingCompactSize = NSSize(width: 260, height: 30)
+    public static let floatingExpandedSize = NSSize(width: 560, height: 175)
+    public static let floatingHUDSize = NSSize(width: 340, height: 80)
+    public static let floatingAlertSize = NSSize(width: 360, height: 74)
+    public static let floatingTopMargin: CGFloat = 8
+    public static let floatingExpandedTopMargin: CGFloat = 10
+    
     public static let contentHeight: CGFloat = 118
     public static let actionButtonHeight: CGFloat = 34
     public static let iconSmall: CGFloat = 14
@@ -166,7 +180,12 @@ public enum MacPulseDimensions {
 }
 
 public enum MacPulseAnimations {
-    public static let islandSpring = Animation.spring(response: 0.28, dampingFraction: 0.82)
+    // True-to-life iOS Dynamic Island Motion Physics
+    public static let islandSpring = Animation.spring(response: 0.32, dampingFraction: 0.76)
+    public static let dynamicIslandExpand = Animation.spring(response: 0.36, dampingFraction: 0.72, blendDuration: 0.18)
+    public static let dynamicIslandCollapse = Animation.spring(response: 0.30, dampingFraction: 0.68, blendDuration: 0.14)
+    public static let jellySpring = Animation.spring(response: 0.28, dampingFraction: 0.58)
+    public static let interactiveSpring = Animation.interactiveSpring(response: 0.24, dampingFraction: 0.82)
     public static let snappySpring = Animation.spring(response: 0.22, dampingFraction: 0.78)
     public static let smooth = Animation.easeInOut(duration: 0.20)
 }
