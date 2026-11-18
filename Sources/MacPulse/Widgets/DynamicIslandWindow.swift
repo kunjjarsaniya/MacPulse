@@ -11,6 +11,11 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     }
     
     override func scrollWheel(with event: NSEvent) {
+        if DynamicIslandController.shared.isExpanded && event.scrollingDeltaY > 16 {
+            HapticFeedback.playSoft()
+            DynamicIslandController.shared.collapse()
+            return
+        }
         if DynamicIslandController.shared.handleScrollWheelEvent(event) {
             return
         }
@@ -18,87 +23,69 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     }
 }
 
-// MARK: - Dynamic Island Shape (Adaptive Floating Capsule & Notch Geometry)
+// MARK: - Authentic Apple Notch & Island Shape (Curved Ear Layout Design)
 
-public struct DynamicIslandShape: Shape {
-    public var isFloating: Bool
-    public var topRadius: CGFloat
-    public var bottomRadius: CGFloat
+public struct NotchShape: Shape {
+    public var topCornerRadius: CGFloat
+    public var bottomCornerRadius: CGFloat
     
-    public init(isFloating: Bool = false, topRadius: CGFloat = 8, bottomRadius: CGFloat = 14) {
-        self.isFloating = isFloating
-        self.topRadius = topRadius
-        self.bottomRadius = bottomRadius
+    public init(topCornerRadius: CGFloat = 8, bottomCornerRadius: CGFloat = 14) {
+        self.topCornerRadius = topCornerRadius
+        self.bottomCornerRadius = bottomCornerRadius
     }
     
     public var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { .init(topRadius, bottomRadius) }
+        get { .init(topCornerRadius, bottomCornerRadius) }
         set {
-            topRadius = newValue.first
-            bottomRadius = newValue.second
+            topCornerRadius = newValue.first
+            bottomCornerRadius = newValue.second
         }
     }
     
     public func path(in rect: CGRect) -> Path {
-        if isFloating {
-            // Floating Capsule Shape: 4 continuous smooth corners (True iOS Dynamic Island Capsule)
-            return Path(
-                roundedRect: rect,
-                cornerRadii: RectangleCornerRadii(
-                    topLeading: topRadius,
-                    bottomLeading: bottomRadius,
-                    bottomTrailing: bottomRadius,
-                    topTrailing: topRadius
-                ),
-                style: .continuous
-            )
-        } else {
-            // Docked Notch: Concave ears flowing seamlessly down into screen bezel
-            var path = Path()
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            
-            // Top-left ear: concave curve flowing smoothly down from menu bar into notch
-            path.addQuadCurve(
-                to: CGPoint(x: rect.minX + topRadius, y: rect.minY + topRadius),
-                control: CGPoint(x: rect.minX + topRadius, y: rect.minY)
-            )
-            
-            // Left vertical edge
-            path.addLine(to: CGPoint(x: rect.minX + topRadius, y: rect.maxY - bottomRadius))
-            
-            // Bottom-left convex rounded corner
-            path.addQuadCurve(
-                to: CGPoint(x: rect.minX + topRadius + bottomRadius, y: rect.maxY),
-                control: CGPoint(x: rect.minX + topRadius, y: rect.maxY)
-            )
-            
-            // Bottom horizontal edge
-            path.addLine(to: CGPoint(x: rect.maxX - topRadius - bottomRadius, y: rect.maxY))
-            
-            // Bottom-right convex rounded corner
-            path.addQuadCurve(
-                to: CGPoint(x: rect.maxX - topRadius, y: rect.maxY - bottomRadius),
-                control: CGPoint(x: rect.maxX - topRadius, y: rect.maxY)
-            )
-            
-            // Right vertical edge
-            path.addLine(to: CGPoint(x: rect.maxX - topRadius, y: rect.minY + topRadius))
-            
-            // Top-right ear: concave curve flowing smoothly out into menu bar
-            path.addQuadCurve(
-                to: CGPoint(x: rect.maxX, y: rect.minY),
-                control: CGPoint(x: rect.maxX - topRadius, y: rect.minY)
-            )
-            
-            // Top horizontal edge back to start
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-            return path
-        }
+        var path = Path()
+        
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        
+        // Top-left ear: concave curve flowing smoothly down from menu bar into notch
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + topCornerRadius, y: rect.minY + topCornerRadius),
+            control: CGPoint(x: rect.minX + topCornerRadius, y: rect.minY)
+        )
+        
+        // Left vertical edge
+        path.addLine(to: CGPoint(x: rect.minX + topCornerRadius, y: rect.maxY - bottomCornerRadius))
+        
+        // Bottom-left convex rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + topCornerRadius + bottomCornerRadius, y: rect.maxY),
+            control: CGPoint(x: rect.minX + topCornerRadius, y: rect.maxY)
+        )
+        
+        // Bottom horizontal edge
+        path.addLine(to: CGPoint(x: rect.maxX - topCornerRadius - bottomCornerRadius, y: rect.maxY))
+        
+        // Bottom-right convex rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - topCornerRadius, y: rect.maxY - bottomCornerRadius),
+            control: CGPoint(x: rect.maxX - topCornerRadius, y: rect.maxY)
+        )
+        
+        // Right vertical edge
+        path.addLine(to: CGPoint(x: rect.maxX - topCornerRadius, y: rect.minY + topCornerRadius))
+        
+        // Top-right ear: concave curve flowing smoothly out into menu bar
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: rect.maxX - topCornerRadius, y: rect.minY)
+        )
+        
+        // Top horizontal edge back to start
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        
+        return path
     }
 }
-
-// Backward-compatible alias
-public typealias NotchShape = DynamicIslandShape
 
 // MARK: - Dynamic Island Panel & Controller
 
@@ -188,9 +175,6 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var showCameraMirror: Bool = false
     @Published public var activeAlert: DynamicIslandAlertItem? = nil
     
-    // Hardware Notch Detection (Automatic floating capsule for devices with topInset == 0)
-    @Published public var isNotchedDisplay: Bool = false
-    
     private var alertDismissTimer: DispatchWorkItem?
     private var alertActionHandler: (() -> Void)? = nil
     
@@ -213,34 +197,7 @@ public final class DynamicIslandController: ObservableObject {
     private init() {
         setupDistributedNotifications()
         setupPowerSourceObserver()
-        setupScreenObserver()
         setupScrollMonitor()
-        detectScreenType()
-    }
-    
-    public func detectScreenType() {
-        guard let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first else {
-            isNotchedDisplay = false
-            return
-        }
-        if #available(macOS 12.0, *) {
-            isNotchedDisplay = screen.safeAreaInsets.top > 0
-        } else {
-            isNotchedDisplay = false
-        }
-    }
-    
-    private func setupScreenObserver() {
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.detectScreenType()
-                self?.updateWindowSize(expanded: self?.isExpanded ?? false)
-            }
-        }
     }
     
     private func setupPowerSourceObserver() {
@@ -267,7 +224,7 @@ public final class DynamicIslandController: ObservableObject {
         
         let work = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
-            withAnimation(MacPulseAnimations.islandSpring) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                 self.activeLiveActivityText = nil
             }
             if !self.isExpanded {
@@ -282,13 +239,11 @@ public final class DynamicIslandController: ObservableObject {
         scrollEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
             guard let self = self, let screen = NSScreen.main else { return }
             let mouseLoc = NSEvent.mouseLocation
-            self.detectScreenType()
             
             // If collapsed: pull down gesture near top screen edge expands the island
             if !self.isExpanded {
-                let thresholdY = self.isNotchedDisplay ? (screen.frame.maxY - 45) : (screen.frame.maxY - 55)
-                guard mouseLoc.y >= thresholdY else { return }
-                if event.scrollingDeltaY < -5 || event.scrollingDeltaY > 5 {
+                guard mouseLoc.y >= (screen.frame.maxY - 45) else { return }
+                if event.scrollingDeltaY < -6 {
                     self.expand()
                 }
                 return
@@ -296,39 +251,49 @@ public final class DynamicIslandController: ObservableObject {
             
             // If expanded: check if cursor is over the dynamic island window for gestures
             if let win = self.window, win.frame.contains(mouseLoc) {
+                // Vertical scroll up over dynamic island collapses the shelf
+                if event.scrollingDeltaY > 16 {
+                    HapticFeedback.playSoft()
+                    self.collapse()
+                    return
+                }
                 _ = self.handleScrollWheelEvent(event)
             }
         }
     }
     
-    // MARK: - Gesture-Based Tab Navigation Engine & Scroll-to-Dismiss
+    // MARK: - Gesture-Based Tab Navigation Engine
     
     public func selectNextTab() {
         guard isExpanded, activeHUD == nil, !showCameraMirror else { return }
         let all = MacPulseShelfTab.allCases
-        guard let currentIdx = all.firstIndex(of: activeTab), currentIdx < all.count - 1 else { return }
-        navigationDirection = .forward
-        withAnimation(MacPulseAnimations.islandSpring) {
-            activeTab = all[currentIdx + 1]
+        guard let currentIdx = all.firstIndex(of: activeTab) else { return }
+        if currentIdx < all.count - 1 {
+            navigationDirection = .forward
+            withAnimation(MacPulseAnimations.dynamicIslandExpand) {
+                activeTab = all[currentIdx + 1]
+            }
+            HapticFeedback.playSoft()
         }
-        HapticFeedback.playSoft()
     }
     
     public func selectPreviousTab() {
         guard isExpanded, activeHUD == nil, !showCameraMirror else { return }
         let all = MacPulseShelfTab.allCases
-        guard let currentIdx = all.firstIndex(of: activeTab), currentIdx > 0 else { return }
-        navigationDirection = .backward
-        withAnimation(MacPulseAnimations.islandSpring) {
-            activeTab = all[currentIdx - 1]
+        guard let currentIdx = all.firstIndex(of: activeTab) else { return }
+        if currentIdx > 0 {
+            navigationDirection = .backward
+            withAnimation(MacPulseAnimations.dynamicIslandExpand) {
+                activeTab = all[currentIdx - 1]
+            }
+            HapticFeedback.playSoft()
         }
-        HapticFeedback.playSoft()
     }
     
     public func selectTab(_ tab: MacPulseShelfTab) {
         guard activeTab != tab else { return }
         navigationDirection = tab.index > activeTab.index ? .forward : .backward
-        withAnimation(MacPulseAnimations.islandSpring) {
+        withAnimation(MacPulseAnimations.dynamicIslandExpand) {
             activeTab = tab
         }
         HapticFeedback.playSoft()
@@ -361,31 +326,22 @@ public final class DynamicIslandController: ObservableObject {
         
         let deltaX = event.scrollingDeltaX
         let deltaY = event.scrollingDeltaY
-        let absX = abs(deltaX)
-        let absY = abs(deltaY)
         
-        // 1. Vertical Trackpad/Mouse Swipe-to-Dismiss (when swiped vertically towards top of screen)
-        if absY > absX * 1.35 {
-            if deltaY > 10 || deltaY < -10 {
-                lastSwipeTimestamp = now
-                isSwipeLocked = true
-                HapticFeedback.playSoft()
-                self.collapse()
-                return true
-            }
+        // Vertical scrolling inside views MUST NOT navigate tabs
+        guard abs(deltaX) > abs(deltaY) * 1.3 else {
             return false
         }
         
-        // 2. Horizontal Tab Navigation & Horizontal Scroll-to-Dismiss at Edges
+        let all = MacPulseShelfTab.allCases
+        
+        // For non-precise mouse wheels (e.g. discrete tilt wheel ticks)
         if !event.hasPreciseScrollingDeltas {
-            let all = MacPulseShelfTab.allCases
             if deltaX < -0.4 {
                 lastSwipeTimestamp = now
                 isSwipeLocked = true
                 if activeTab == all.last {
-                    // Beyond last tab: horizontal scroll-to-dismiss!
                     HapticFeedback.playSoft()
-                    self.collapse()
+                    collapse()
                 } else {
                     selectNextTab()
                 }
@@ -394,9 +350,8 @@ public final class DynamicIslandController: ObservableObject {
                 lastSwipeTimestamp = now
                 isSwipeLocked = true
                 if activeTab == all.first {
-                    // Beyond first tab: horizontal scroll-to-dismiss!
                     HapticFeedback.playSoft()
-                    self.collapse()
+                    collapse()
                 } else {
                     selectPreviousTab()
                 }
@@ -408,27 +363,26 @@ public final class DynamicIslandController: ObservableObject {
         // For trackpad precise gestures, accumulate deltaX
         accumulatedDeltaX += deltaX
         
-        let all = MacPulseShelfTab.allCases
         if accumulatedDeltaX < -swipeThreshold {
+            // Swiped Left (fingers move right-to-left) -> Move to Next Tab, or Dismiss at end
             accumulatedDeltaX = 0
             isSwipeLocked = true
             lastSwipeTimestamp = now
             if activeTab == all.last {
-                // Swiped Left beyond last tab: horizontal scroll-to-dismiss!
                 HapticFeedback.playSoft()
-                self.collapse()
+                collapse()
             } else {
                 selectNextTab()
             }
             return true
         } else if accumulatedDeltaX > swipeThreshold {
+            // Swiped Right (fingers move left-to-right) -> Move to Previous Tab, or Dismiss at start
             accumulatedDeltaX = 0
             isSwipeLocked = true
             lastSwipeTimestamp = now
             if activeTab == all.first {
-                // Swiped Right beyond first tab: horizontal scroll-to-dismiss!
                 HapticFeedback.playSoft()
-                self.collapse()
+                collapse()
             } else {
                 selectPreviousTab()
             }
@@ -623,32 +577,27 @@ public final class DynamicIslandController: ObservableObject {
     public func expand(to tab: MacPulseShelfTab = .home) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            self.show()
             self.activeTab = tab
             self.navigationDirection = .forward
-            withAnimation(MacPulseAnimations.dynamicIslandExpand) {
-                self.isExpanded = true
-            }
+            self.isExpanded = true
             self.updateWindowSize(expanded: true)
             self.startMonitoringClickOutside()
-            HapticFeedback.playSoft()
         }
     }
     
     public func collapse() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            withAnimation(MacPulseAnimations.dynamicIslandCollapse) {
-                self.isExpanded = false
-                self.activeTab = .home
-                self.navigationDirection = .forward
-                self.activeHUD = nil
-                self.showCameraMirror = false
-                self.showToast = false
-            }
+            self.isExpanded = false
+            self.activeTab = .home
+            self.navigationDirection = .forward
+            self.activeHUD = nil
+            self.showCameraMirror = false
             CameraMirrorManager.shared.stop()
+            self.showToast = false
             self.stopMonitoringClickOutside()
             self.updateWindowSize(expanded: false)
-            HapticFeedback.playSoft()
         }
     }
     
@@ -710,7 +659,7 @@ public final class DynamicIslandController: ObservableObject {
                 soundName: soundName
             )
             
-            withAnimation(MacPulseAnimations.dynamicIslandExpand) {
+            withAnimation(MacPulseAnimations.islandSpring) {
                 self.activeAlert = alert
             }
             NotificationManager.shared.playAlertSound(name: soundName)
@@ -743,7 +692,7 @@ public final class DynamicIslandController: ObservableObject {
             self.alertDismissTimer?.cancel()
             self.alertDismissTimer = nil
             self.alertActionHandler = nil
-            withAnimation(MacPulseAnimations.dynamicIslandCollapse) {
+            withAnimation(MacPulseAnimations.islandSpring) {
                 self.activeAlert = nil
             }
             self.updateWindowSize(expanded: self.isExpanded)
@@ -842,7 +791,7 @@ public final class DynamicIslandController: ObservableObject {
         let newFrame = NSRect(origin: origin, size: targetSize)
         
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = expanded ? 0.36 : 0.30
+            context.duration = 0.28
             context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             win.animator().setFrame(newFrame, display: true)
         }
@@ -852,35 +801,25 @@ public final class DynamicIslandController: ObservableObject {
         guard let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first else {
             return (compactSize, .zero)
         }
-        detectScreenType()
-        
         let targetSize: NSSize
-        let floatingMargin: CGFloat = expanded ? MacPulseDimensions.floatingExpandedTopMargin : MacPulseDimensions.floatingTopMargin
-        
         if activeAlert != nil {
-            targetSize = isNotchedDisplay ? MacPulseDimensions.alertIslandSize : MacPulseDimensions.floatingAlertSize
+            targetSize = MacPulseDimensions.alertIslandSize
         } else if activeHUD != nil {
-            targetSize = isNotchedDisplay ? MacPulseDimensions.hudIslandSize : MacPulseDimensions.floatingHUDSize
+            targetSize = MacPulseDimensions.hudIslandSize
         } else if expanded {
-            targetSize = isNotchedDisplay ? expandedSize : MacPulseDimensions.floatingExpandedSize
+            targetSize = expandedSize
         } else if activeLiveActivityText != nil {
-            targetSize = NSSize(width: 280, height: isNotchedDisplay ? compactSize.height : MacPulseDimensions.floatingCompactSize.height)
+            targetSize = NSSize(width: 280, height: compactSize.height)
         } else {
-            targetSize = isNotchedDisplay ? compactSize : MacPulseDimensions.floatingCompactSize
+            targetSize = compactSize
         }
-        
         let x = screen.frame.midX - (targetSize.width / 2.0)
-        let y: CGFloat
-        if isNotchedDisplay {
-            y = screen.frame.maxY - targetSize.height
-        } else {
-            y = screen.frame.maxY - targetSize.height - floatingMargin
-        }
+        let y = screen.frame.maxY - targetSize.height
         return (targetSize, CGPoint(x: x, y: y))
     }
 }
 
-// MARK: - Hallmark Dynamic Island Root View (Apple-Engineered Architecture & Fluid Physics)
+// MARK: - Hallmark Dynamic Island Root View (Apple-Engineered Architecture)
 
 public struct HallmarkDynamicIslandRootView: View {
     @ObservedObject private var controller = DynamicIslandController.shared
@@ -891,13 +830,11 @@ public struct HallmarkDynamicIslandRootView: View {
     
     @State private var isHovering: Bool = false
     @State private var currentTimeString: String = ""
-    @Namespace private var tabAnimationNamespace
-    
-    // Interactive Gestures & Dynamic Physics State
     @State private var dragOffsetY: CGFloat = 0
     @State private var dragOffsetX: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var jellyScale: CGSize = CGSize(width: 1.0, height: 1.0)
+    @Namespace private var tabAnimationNamespace
     
     private static let timeFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -913,128 +850,52 @@ public struct HallmarkDynamicIslandRootView: View {
         controller.isExpanded
     }
     
-    private var isFloating: Bool {
-        !controller.isNotchedDisplay
-    }
-    
     private var isAnyTimerRunning: Bool {
         timer.reminderState == .running || timer.countdownState == .running || timer.stopwatchState == .running
     }
     
-    // Dynamic Corner Radii with Adaptive Swipe Interpolation
-    private var currentIslandShape: DynamicIslandShape {
-        let dismissProgress: CGFloat = isExpanded ? min(1.0, max(0.0, -dragOffsetY / 45.0)) : 0.0
-        
-        let topRadius: CGFloat
+    private var currentNotchShape: NotchShape {
+        let topEar: CGFloat
         let bottomRadius: CGFloat
-        
-        if isFloating {
-            // Floating Capsule: continuous rounded squircle / pill
-            if controller.activeAlert != nil {
-                topRadius = MacPulseRadius.floatingRadiusAlert
-                bottomRadius = MacPulseRadius.floatingRadiusAlert
-            } else if controller.activeHUD != nil {
-                topRadius = MacPulseRadius.floatingRadiusHUD
-                bottomRadius = MacPulseRadius.floatingRadiusHUD
-            } else if isExpanded {
-                let base = MacPulseRadius.floatingRadiusExpanded
-                let target = MacPulseRadius.floatingRadiusCompact
-                let interpolated = base + (target - base) * dismissProgress
-                topRadius = interpolated
-                bottomRadius = interpolated
+        if controller.activeAlert != nil {
+            topEar = MacPulseRadius.topEarHUD
+            bottomRadius = MacPulseRadius.bottomCornerHUD
+        } else if controller.activeHUD != nil {
+            topEar = MacPulseRadius.topEarHUD
+            bottomRadius = MacPulseRadius.bottomCornerHUD
+        } else if isExpanded {
+            topEar = MacPulseRadius.topEarExpanded
+            // Adaptive corner radii when dragging up to dismiss
+            if dragOffsetY < 0 {
+                let factor = min(1.0, max(0.0, -dragOffsetY / 50.0))
+                bottomRadius = MacPulseRadius.bottomCornerExpanded - (factor * (MacPulseRadius.bottomCornerExpanded - MacPulseRadius.bottomCornerCompact))
             } else {
-                topRadius = MacPulseRadius.floatingRadiusCompact
-                bottomRadius = MacPulseRadius.floatingRadiusCompact
+                bottomRadius = MacPulseRadius.bottomCornerExpanded
             }
         } else {
-            // Docked Notch: Concave ears + convex bottom
-            let topEar: CGFloat
-            let baseBottom: CGFloat
-            if controller.activeAlert != nil {
-                topEar = MacPulseRadius.topEarHUD
-                baseBottom = MacPulseRadius.bottomCornerHUD
-            } else if controller.activeHUD != nil {
-                topEar = MacPulseRadius.topEarHUD
-                baseBottom = MacPulseRadius.bottomCornerHUD
-            } else if isExpanded {
-                let baseEar = MacPulseRadius.topEarExpanded
-                let targetEar = MacPulseRadius.topEarCompact
-                topEar = baseEar + (targetEar - baseEar) * dismissProgress
-                
-                let targetBottom = MacPulseRadius.bottomCornerCompact
-                baseBottom = MacPulseRadius.bottomCornerExpanded + (targetBottom - MacPulseRadius.bottomCornerExpanded) * dismissProgress
-            } else {
-                topEar = MacPulseRadius.topEarCompact
-                baseBottom = MacPulseRadius.bottomCornerCompact
-            }
-            topRadius = topEar
-            bottomRadius = baseBottom
+            topEar = MacPulseRadius.topEarCompact
+            bottomRadius = MacPulseRadius.bottomCornerCompact
         }
-        
-        return DynamicIslandShape(isFloating: isFloating, topRadius: topRadius, bottomRadius: bottomRadius)
-    }
-    
-    // Swipe-Aware Blur and Specular Rim Opacity
-    private var swipeAwareBlurOpacity: Double {
-        if isExpanded && dragOffsetY < 0 {
-            let progress = min(1.0, max(0.0, -dragOffsetY / 45.0))
-            return max(0.60, 0.96 - Double(progress) * 0.36)
-        }
-        return 0.96
-    }
-    
-    private var swipeAwareBorderOpacity: Double {
-        if isExpanded && dragOffsetY < 0 {
-            let progress = min(1.0, max(0.0, -dragOffsetY / 45.0))
-            return max(0.06, 0.22 - Double(progress) * 0.16)
-        }
-        return isHovering || isExpanded || controller.activeHUD != nil || controller.activeAlert != nil ? 0.22 : 0.12
-    }
-    
-    private var currentIslandWidth: CGFloat {
-        if controller.activeAlert != nil {
-            return isFloating ? MacPulseDimensions.floatingAlertSize.width : MacPulseDimensions.alertIslandSize.width
-        } else if controller.activeHUD != nil {
-            return isFloating ? MacPulseDimensions.floatingHUDSize.width : MacPulseDimensions.hudIslandSize.width
-        } else if isExpanded {
-            return isFloating ? MacPulseDimensions.floatingExpandedSize.width : MacPulseDimensions.expandedIslandSize.width
-        } else if controller.activeLiveActivityText != nil {
-            return MacPulseDimensions.compactLiveActivitySize.width
-        } else {
-            return isFloating ? MacPulseDimensions.floatingCompactSize.width : MacPulseDimensions.compactIslandSize.width
-        }
-    }
-    
-    private var currentIslandHeight: CGFloat {
-        if controller.activeAlert != nil {
-            return isFloating ? MacPulseDimensions.floatingAlertSize.height : MacPulseDimensions.alertIslandSize.height
-        } else if controller.activeHUD != nil {
-            return isFloating ? MacPulseDimensions.floatingHUDSize.height : MacPulseDimensions.hudIslandSize.height
-        } else if isExpanded {
-            return isFloating ? MacPulseDimensions.floatingExpandedSize.height : MacPulseDimensions.expandedIslandSize.height
-        } else {
-            return isFloating ? MacPulseDimensions.floatingCompactSize.height : MacPulseDimensions.compactIslandSize.height
-        }
+        return NotchShape(topCornerRadius: topEar, bottomCornerRadius: bottomRadius)
     }
     
     public var body: some View {
         ZStack(alignment: .top) {
-            // 1. Dynamic Island Shape Chassis (Floating Capsule or Docked Notch with Adaptive Blur)
-            currentIslandShape
-                .fill(MacPulseColors.islandBackground.opacity(swipeAwareBlurOpacity))
+            // Unified Apple Curved Notch Chassis (Zero Drop Shadow, Curved Ears)
+            currentNotchShape
+                .fill(MacPulseColors.islandBackground.opacity(0.96))
                 .background(
                     VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
-                        .clipShape(currentIslandShape)
-                        .opacity(swipeAwareBlurOpacity)
+                        .clipShape(currentNotchShape)
                 )
                 .overlay(
                     // Subtle Specular Hairline Rim Light (0.6pt)
-                    currentIslandShape
+                    currentNotchShape
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(swipeAwareBorderOpacity),
-                                    Color.white.opacity(0.04),
+                                    Color.white.opacity(isHovering || isExpanded || controller.activeHUD != nil || controller.activeAlert != nil ? 0.22 : 0.12),
+                                    Color.white.opacity(0.05),
                                     Color.clear
                                 ],
                                 startPoint: .topLeading,
@@ -1044,29 +905,22 @@ public struct HallmarkDynamicIslandRootView: View {
                         )
                 )
             
-            // 2. Synchronized Content Interpolation & Presentation
-            ZStack(alignment: .top) {
-                if let alert = controller.activeAlert {
-                    DynamicIslandAlertView(alert: alert)
-                        .transition(.scale(scale: 0.94).combined(with: .opacity))
-                } else if let hud = controller.activeHUD {
-                    DynamicIslandHUDControlView(hudType: hud)
-                        .transition(.scale(scale: 0.95).combined(with: .opacity))
-                } else if isExpanded {
-                    expandedShelfContent
-                        .opacity(isExpanded ? 1.0 : 0.0)
-                        .scaleEffect(isExpanded ? 1.0 : 0.92, anchor: .top)
-                        .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .top)))
-                } else {
-                    compactPillBar
-                        .opacity(isExpanded ? 0.0 : 1.0)
-                        .scaleEffect(isExpanded ? 0.88 : 1.0, anchor: .center)
-                        .transition(.opacity.combined(with: .scale(scale: 0.90)))
-                }
+            // Content Switcher
+            if let alert = controller.activeAlert {
+                DynamicIslandAlertView(alert: alert)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            } else if let hud = controller.activeHUD {
+                DynamicIslandHUDControlView(hudType: hud)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if isExpanded {
+                expandedShelfContent
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                compactPillBar
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
-            .animation(MacPulseAnimations.dynamicIslandExpand, value: isExpanded)
             
-            // 3. Floating Toast Notification Pill
+            // Floating Toast Notification Pill
             if controller.showToast {
                 VStack {
                     Spacer()
@@ -1098,22 +952,26 @@ public struct HallmarkDynamicIslandRootView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .frame(width: currentIslandWidth, height: currentIslandHeight)
-        .clipShape(currentIslandShape)
-        .offset(x: dragOffsetX, y: dragOffsetY)
+        .frame(
+            width: controller.activeAlert != nil
+                ? MacPulseDimensions.alertIslandSize.width
+                : (controller.activeHUD != nil
+                    ? MacPulseDimensions.hudIslandSize.width
+                    : (isExpanded
+                        ? MacPulseDimensions.expandedIslandSize.width
+                        : (controller.activeLiveActivityText != nil ? MacPulseDimensions.compactLiveActivitySize.width : MacPulseDimensions.compactIslandSize.width))),
+            height: controller.activeAlert != nil
+                ? MacPulseDimensions.alertIslandSize.height
+                : (controller.activeHUD != nil
+                    ? MacPulseDimensions.hudIslandSize.height
+                    : (isExpanded ? MacPulseDimensions.expandedIslandSize.height : MacPulseDimensions.compactIslandSize.height))
+        )
+        .clipShape(currentNotchShape)
+        .offset(y: dragOffsetY)
         .scaleEffect(jellyScale, anchor: .top)
-        .animation(MacPulseAnimations.dynamicIslandExpand, value: isExpanded)
-        .animation(MacPulseAnimations.dynamicIslandExpand, value: controller.activeAlert)
-        .animation(MacPulseAnimations.dynamicIslandExpand, value: controller.activeHUD)
-        .animation(MacPulseAnimations.dynamicIslandExpand, value: controller.activeLiveActivityText)
-        .animation(MacPulseAnimations.snappySpring, value: isHovering)
-        .animation(MacPulseAnimations.interactiveSpring, value: dragOffsetY)
-        .animation(MacPulseAnimations.interactiveSpring, value: dragOffsetX)
-        .onHover { hovering in
-            isHovering = hovering
-        }
+        .opacity(isExpanded && dragOffsetY < 0 ? max(0.70, 1.0 + (dragOffsetY / 120.0)) : 1.0)
         .gesture(
-            DragGesture(minimumDistance: 3)
+            DragGesture(minimumDistance: 4)
                 .onChanged { value in
                     handleDragChanged(value)
                 }
@@ -1121,8 +979,16 @@ public struct HallmarkDynamicIslandRootView: View {
                     handleDragEnded(value)
                 }
         )
+        .animation(MacPulseAnimations.islandSpring, value: controller.showToast)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeAlert)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeHUD)
+        .animation(MacPulseAnimations.islandSpring, value: isExpanded)
+        .animation(MacPulseAnimations.islandSpring, value: controller.activeLiveActivityText)
+        .animation(MacPulseAnimations.snappySpring, value: isHovering)
+        .onHover { hovering in
+            isHovering = hovering
+        }
         .onAppear {
-            controller.detectScreenType()
             updateClock()
         }
         .onReceive(clockTimer) { _ in
@@ -1131,32 +997,24 @@ public struct HallmarkDynamicIslandRootView: View {
     }
     
     private func handleDragChanged(_ value: DragGesture.Value) {
-        let transX = value.translation.width
         let transY = value.translation.height
+        let transX = value.translation.width
         
         if isExpanded {
-            guard controller.activeHUD == nil, !controller.showCameraMirror else { return }
-            isDragging = true
-            
-            // Vertical Drag (Swipe up to dismiss)
-            if abs(transY) > abs(transX) {
-                if transY < 0 {
-                    // Dragging up towards dismissal: follow finger with slight resistance
-                    dragOffsetY = transY * 0.85
-                    let squashX = min(1.04, 1.0 + abs(transY) / 600.0)
-                    let stretchY = max(0.90, 1.0 - abs(transY) / 350.0)
-                    jellyScale = CGSize(width: squashX, height: stretchY)
-                } else {
-                    // Dragging down: rubber-band elastic resistance
-                    dragOffsetY = transY * 0.22
-                    jellyScale = CGSize(width: 0.99, height: 1.01)
-                }
-            } else {
-                // Horizontal Drag (Tab navigation / edge dismiss)
-                dragOffsetX = transX * 0.35
+            if transY < 0 {
+                // Interactive vertical swipe-to-dismiss upward
+                isDragging = true
+                dragOffsetY = transY * 0.42
+                let squashY = max(0.88, 1.0 + (transY / 420.0))
+                let stretchX = min(1.08, 1.0 - (transY / 600.0))
+                jellyScale = CGSize(width: stretchX, height: squashY)
+            } else if abs(transX) > abs(transY) {
+                // Interactive horizontal drag feedback
+                isDragging = true
+                dragOffsetX = transX * 0.25
             }
         } else {
-            // Collapsed Compact Pill: Pull-down-to-expand
+            // Collapsed: pulling down to expand
             if transY > 0 {
                 isDragging = true
                 dragOffsetY = transY * 0.42
@@ -1176,27 +1034,25 @@ public struct HallmarkDynamicIslandRootView: View {
         if isExpanded {
             if abs(transY) > abs(transX) {
                 // Vertical Swipe Up to Dismiss
-                if transY < -28 || velocityY < -100 {
+                if transY < -26 || velocityY < -90 {
                     HapticFeedback.playSoft()
                     collapse()
                 }
             } else {
                 // Horizontal Drag: Tab Navigation & Scroll-to-Dismiss at Edges
-                if abs(transX) > 28 || abs(velocityX) > 90 {
+                if abs(transX) > 26 || abs(velocityX) > 80 {
                     let all = MacPulseShelfTab.allCases
                     if transX < 0 {
-                        // Dragged Left
+                        // Dragged Left -> Next tab, or dismiss if on last tab
                         if controller.activeTab == all.last {
-                            // Beyond last tab: horizontal scroll-to-dismiss!
                             HapticFeedback.playSoft()
                             collapse()
                         } else {
                             controller.selectNextTab()
                         }
                     } else {
-                        // Dragged Right
+                        // Dragged Right -> Previous tab, or dismiss if on first tab
                         if controller.activeTab == all.first {
-                            // Beyond first tab: horizontal scroll-to-dismiss!
                             HapticFeedback.playSoft()
                             collapse()
                         } else {
@@ -1207,7 +1063,7 @@ public struct HallmarkDynamicIslandRootView: View {
             }
         } else {
             // Collapsed: Pull Down to Restore
-            if transY > 20 || velocityY > 100 {
+            if transY > 18 || velocityY > 80 {
                 expand()
             }
         }
@@ -1247,7 +1103,7 @@ public struct HallmarkDynamicIslandRootView: View {
                         .font(MacPulseTypography.footnoteRounded)
                         .foregroundColor(MacPulseColors.textPrimary)
                 }
-                .frame(height: isFloating ? MacPulseDimensions.floatingCompactSize.height : MacPulseDimensions.compactIslandSize.height)
+                .frame(height: MacPulseDimensions.compactIslandSize.height)
                 .padding(.horizontal, 12)
                 .contentShape(Rectangle())
                 .onTapGesture { expand() }
@@ -1342,7 +1198,7 @@ public struct HallmarkDynamicIslandRootView: View {
                     
                     Spacer(minLength: 2)
                 }
-                .frame(height: isFloating ? MacPulseDimensions.floatingCompactSize.height : MacPulseDimensions.compactIslandSize.height)
+                .frame(height: MacPulseDimensions.compactIslandSize.height)
                 .padding(.horizontal, 10)
                 .contentShape(Rectangle())
                 .onTapGesture { expand() }
@@ -1460,19 +1316,10 @@ public struct HallmarkDynamicIslandRootView: View {
                         let transX = gesture.translation.width
                         let transY = gesture.translation.height
                         guard abs(transX) > abs(transY) * 1.35 else { return }
-                        let all = MacPulseShelfTab.allCases
                         if transX < -30 {
-                            if controller.activeTab == all.last {
-                                controller.collapse()
-                            } else {
-                                controller.selectNextTab()
-                            }
+                            controller.selectNextTab()
                         } else if transX > 30 {
-                            if controller.activeTab == all.first {
-                                controller.collapse()
-                            } else {
-                                controller.selectPreviousTab()
-                            }
+                            controller.selectPreviousTab()
                         }
                     }
             )
