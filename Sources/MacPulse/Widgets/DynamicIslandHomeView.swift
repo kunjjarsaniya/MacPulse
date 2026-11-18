@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Dynamic Island Home View (Dedicated Spotify & Minimalist Monochromatic Styling)
+// MARK: - Dynamic Island Home View (Apple & NotchNook Minimalist Monochromatic Styling)
 
 public struct DynamicIslandHomeView: View {
     @ObservedObject private var media = MediaManager.shared
@@ -14,29 +14,16 @@ public struct DynamicIslandHomeView: View {
     
     public init() {}
     
-    private var visualizerBarColor: Color {
-        guard media.currentTrack.isPlaying else {
-            return Color.white.opacity(0.20)
-        }
-        return Color.white.opacity(0.85)
-    }
-    
-    private func visualizerBarHeight(at idx: Int) -> CGFloat {
-        guard media.currentTrack.isPlaying else { return 3.5 }
-        let level = media.visualizerLevels.indices.contains(idx) ? media.visualizerLevels[idx] : 0.35
-        return max(3.5, 15.0 * level)
-    }
-    
     public var body: some View {
         HStack(spacing: 0) {
-            // 1. Left: Dedicated Spotify Player Section
+            // 1. Left: Dedicated Spotify Player Section (Matching Reference Image)
             spotifyPlayerSection
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             // 2. Center-Left: Subtle Hairline Divider
             Rectangle()
                 .fill(Color.white.opacity(0.10))
-                .frame(width: 1, height: 72)
+                .frame(width: 1, height: 74)
                 .padding(.horizontal, 14)
             
             // 3. Center-Right: Two Stacked Capsule Action Buttons
@@ -53,7 +40,7 @@ public struct DynamicIslandHomeView: View {
         .frame(height: MacPulseDimensions.contentHeight)
     }
     
-    // MARK: - 1. Spotify Player Section (Seamless Black Chassis)
+    // MARK: - 1. Spotify Player Section (Seamless Black Chassis, Large Art & Bold Typography)
     private var spotifyPlayerSection: some View {
         HStack(spacing: 14) {
             spotifyArtView
@@ -61,16 +48,16 @@ public struct DynamicIslandHomeView: View {
         }
     }
     
-    // MARK: - Artwork with Live Glow & Spotify Badge
+    // MARK: - Artwork with Live Glow & Spotify Badge (Matching Reference Scale)
     private var spotifyArtView: some View {
         let isPlaying = media.currentTrack.isPlaying
-        let artSize: CGFloat = 80
+        let artSize: CGFloat = 90
         let hasActiveTrack = media.hasMedia && !media.currentTrack.title.isEmpty
         
         return ZStack(alignment: .bottomTrailing) {
             // Subtle ambient playing glow
             if hasActiveTrack && isPlaying {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color(hex: "#1DB954").opacity(0.18))
                     .frame(width: artSize, height: artSize)
                     .blur(radius: 8)
@@ -83,11 +70,11 @@ public struct DynamicIslandHomeView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: artSize, height: artSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 } else {
                     // Dedicated Spotify Squircle Placeholder
                     ZStack {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .fill(
                                 LinearGradient(
                                     colors: [Color(hex: "#16161C"), Color(hex: "#0E0E12")],
@@ -96,12 +83,12 @@ public struct DynamicIslandHomeView: View {
                                 )
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
                             )
                         
                         // Centered Spotify Logo with Subtle Glow
-                        SpotifyLogoView(size: 34)
+                        SpotifyLogoView(size: 36)
                     }
                     .frame(width: artSize, height: artSize)
                 }
@@ -109,117 +96,104 @@ public struct DynamicIslandHomeView: View {
             .scaleEffect(isPlaying ? 1.0 : 0.94)
             .animation(.spring(response: 0.32, dampingFraction: 0.74), value: isPlaying)
             
-            // Spotify Badge in Bottom-Right Corner (Only shown when artwork is active)
+            // Spotify Badge in Bottom-Right Corner (Matching Reference Overlap)
             if hasActiveTrack {
-                SpotifyBadgeView(size: 21)
-                    .offset(x: 2, y: 2)
+                SpotifyBadgeView(size: 25)
+                    .offset(x: 3, y: 3)
             }
         }
         .frame(width: artSize, height: artSize)
     }
     
-    // MARK: - Track Details & Controls (Active Track or Dedicated Spotify Idle State)
+    // MARK: - Track Details & Playback Controls (Matching Reference Typography & Icons)
     private var spotifyDetailsAndControlsView: some View {
         let hasActiveTrack = media.hasMedia && !media.currentTrack.title.isEmpty
         
         return VStack(alignment: .leading, spacing: 2.5) {
             if hasActiveTrack {
-                // Line 1: Track Title (Bold White)
+                // Line 1: Track Title (Bold White, 15pt, up to 2 lines like Reference Image)
                 Text(media.currentTrack.title)
-                    .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .lineSpacing(1.5)
                 
-                // Line 2: Album Title (Medium, Muted White)
+                // Line 2: Album Title (Medium 12pt, ~70% Opacity)
                 Text(albumOrSubtitleText)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.70))
                     .lineLimit(1)
                 
-                // Line 3: Artist Name (Medium, Dim Gray)
+                // Line 3: Artist Name (Medium 11pt, ~48% Opacity)
                 Text(media.currentTrack.artist.isEmpty ? "Spotify" : media.currentTrack.artist)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(Color.white.opacity(0.45))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(Color.white.opacity(0.48))
                     .lineLimit(1)
                 
-                Spacer(minLength: 2)
+                Spacer(minLength: 4)
                 
-                // Bottom Row: Monochromatic Playback Controls & Live Equalizer
-                HStack(spacing: 15) {
-                    // Previous Track Button
+                // Controls Row (|◀   ||   ▶| matching Reference Image)
+                HStack(spacing: 16) {
+                    // Previous Track (|◀)
                     Button {
                         media.previousTrack()
                         HapticFeedback.playSoft()
                     } label: {
-                        Image(systemName: "backward.fill")
-                            .font(.system(size: 12, weight: .bold))
+                        Image(systemName: "backward.end.fill")
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.85))
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    
-                    // Play/Pause Button (Clean icon without circular background)
-                    Button {
-                        media.playPause()
-                        HapticFeedback.playSoft()
-                    } label: {
-                        Image(systemName: media.currentTrack.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
                             .frame(width: 22, height: 22)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     
-                    // Next Track Button
+                    // Play/Pause Button (|| or ▶)
                     Button {
-                        media.nextTrack()
+                        media.playPause()
                         HapticFeedback.playSoft()
                     } label: {
-                        Image(systemName: "forward.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.white.opacity(0.85))
-                            .frame(width: 20, height: 20)
+                        Image(systemName: media.currentTrack.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     
-                    Spacer(minLength: 4)
-                    
-                    // Live 4-Bar Equalizer Visualizer
-                    HStack(spacing: 2.5) {
-                        ForEach(0..<4, id: \.self) { idx in
-                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                .fill(visualizerBarColor)
-                                .frame(width: 2.5, height: visualizerBarHeight(at: idx))
-                                .animation(.spring(response: 0.16, dampingFraction: 0.65), value: media.visualizerLevels[idx])
-                        }
+                    // Next Track (▶|)
+                    Button {
+                        media.nextTrack()
+                        HapticFeedback.playSoft()
+                    } label: {
+                        Image(systemName: "forward.end.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color.white.opacity(0.85))
+                            .frame(width: 22, height: 22)
+                            .contentShape(Rectangle())
                     }
-                    .frame(height: 16)
-                    .padding(.trailing, 2)
+                    .buttonStyle(.plain)
                 }
             } else {
                 // Dedicated Spotify Idle State (When Spotify is not playing or closed)
                 // Line 1: Header
                 Text("Spotify")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .lineLimit(1)
                 
                 // Line 2: Status
                 Text("Not Playing")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.65))
                     .lineLimit(1)
                 
                 // Line 3: Caption
                 Text("Play your favorite music")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(Color.white.opacity(0.40))
                     .lineLimit(1)
                 
-                Spacer(minLength: 2)
+                Spacer(minLength: 4)
                 
                 // Single Sleek Spotify Capsule Button
                 Button {
@@ -386,7 +360,7 @@ public struct DynamicIslandHomeView: View {
 public struct SpotifyBadgeView: View {
     public let size: CGFloat
     
-    public init(size: CGFloat = 21) {
+    public init(size: CGFloat = 25) {
         self.size = size
     }
     
@@ -415,7 +389,7 @@ public struct SpotifyBadgeView: View {
         .overlay(
             // Cutout notch stroke
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .stroke(Color.black, lineWidth: 1.8)
+                .stroke(Color.black, lineWidth: 2.0)
         )
     }
 }
@@ -425,7 +399,7 @@ public struct SpotifyBadgeView: View {
 public struct SpotifyLogoView: View {
     public let size: CGFloat
     
-    public init(size: CGFloat = 34) {
+    public init(size: CGFloat = 36) {
         self.size = size
     }
     
